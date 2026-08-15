@@ -1,0 +1,128 @@
+<!--meta
+{
+  "title": "How to design a system",
+  "navTitle": "The framework",
+  "description": "An eight-step framework for approaching a data system design, in an interview or at a whiteboard.",
+  "eyebrow": "Designing a system",
+  "lede": "A repeatable method for turning a vague request into a defensible design. The order matters — most bad designs come from choosing tools at step one instead of step five."
+}
+-->
+
+<h2>The mistake this framework prevents</h2>
+
+<p>Asked to design a data platform, the untrained instinct is to start naming things. "We'd use Kafka, land it in S3, Spark for processing, Snowflake for serving, Airflow to orchestrate." It sounds fluent. It is the wrong first move, and an experienced interviewer will hear it as memorised rather than reasoned.</p>
+
+<p>The problem is that no one has yet said how much data there is, how fresh it must be, or who is going to use it. Every one of those tool choices might be right. None of them is <em>justified</em>, and a design you cannot justify is one you cannot defend when a constraint changes.</p>
+
+<figure class="diagram" data-diagram="framework">
+  <figcaption>Tools are chosen at steps four to six, and only after steps one and two have given you something to justify them against.</figcaption>
+</figure>
+
+<h2>Step 1 — Who uses this, and what do they decide?</h2>
+
+<p>Name the person and the decision. "A dashboard for the operations team to set tomorrow's staffing" tells you far more than "a reporting pipeline" — it tells you the freshness requirement (daily, before the shift is planned), the consumers (a handful of people, not an application), and the correctness bar (approximately right is fine).</p>
+
+<p>If you cannot name the decision, you cannot judge any of the trade-offs that follow. Ask.</p>
+
+<h2>Step 2 — Get numbers, never adjectives</h2>
+
+<p>This is the step that most distinguishes an experienced designer, and the one beginners skip. "Large volume" and "near real-time" are not requirements; they are feelings.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Ask about</th><th>The question</th><th>What it decides</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Volume</strong></td><td>Rows per day, bytes per day, total history?</td><td>Single-node versus distributed. Often the answer is "one machine is fine"</td></tr>
+    <tr><td><strong>Growth</strong></td><td>Twice this in a year, or a hundred times?</td><td>Whether today's design survives, and how much to over-build</td></tr>
+    <tr><td><strong>Freshness</strong></td><td>Daily, hourly, seconds?</td><td>Batch versus streaming — the single biggest cost lever</td></tr>
+    <tr><td><strong>Query pattern</strong></td><td>Ad-hoc SQL, fixed dashboards, or lookups by key?</td><td>The serving layer, and whether a warehouse is even appropriate</td></tr>
+    <tr><td><strong>Correctness</strong></td><td>Approximate, or reconcile to the penny?</td><td>How much reliability machinery is justified</td></tr>
+    <tr><td><strong>Mutability</strong></td><td>Can records change or be deleted after creation?</td><td>The ingestion pattern — see <a href="ingestion.html">Ingestion</a></td></tr>
+    <tr><td><strong>Access</strong></td><td>Who may see personal data?</td><td>Masking, layout, which layer holds what</td></tr>
+    <tr><td><strong>Budget</strong></td><td>Dollars per month, and how many engineers?</td><td>Everything. And it is the constraint people forget to state</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">If you take one habit into an interview</span>
+    <p>Take this one. Ask for numbers before proposing anything.</p>
+    <p>It is the clearest signal of experience available to you, it costs ninety seconds, and it makes every subsequent statement defensible. "I'd use a single-node DuckDB job here, because 40 GB a day with daily freshness does not justify a cluster" is a strong answer. "I'd use Spark" is not, even when Spark turns out to be right.</p>
+  </div>
+</div>
+
+<h2>Step 3 — Sketch the flow before naming anything</h2>
+
+<p>Draw the five boxes from <a href="foundations.html">Foundations</a> and fill them in at the level of "an event stream lands here, gets cleaned here, is served from here". Get agreement on the shape before debating any single component.</p>
+
+<p>This matters because arguments about tools are usually arguments about shape in disguise. Two people disagreeing about Kafka versus a nightly export are really disagreeing about whether the pipeline is event-driven — and settling the shape first makes the tool question answer itself.</p>
+
+<h2>Step 4 — Choose ingestion, per source</h2>
+
+<p>For each source separately: snapshot, high-water-mark, CDC, events, or file drop? Justify with the numbers from step 2 — volume, mutability, whether deletes matter, and freshness.</p>
+
+<p>Different sources in the same system will use different patterns. A design that applies one pattern to everything is usually a design that has not looked at the sources individually.</p>
+
+<h2>Step 5 — Choose storage, format and layout</h2>
+
+<p>Warehouse or lakehouse? Which file format? What is the partition key, and does it match the dominant filter in step 1's query pattern? What is the retention policy?</p>
+
+<p>State the partition key explicitly. It is a small decision that carries a large share of the eventual cost, and naming it shows you know that.</p>
+
+<h2>Step 6 — Choose processing and schedule</h2>
+
+<p>Batch or streaming. Full refresh or incremental. What the DAG looks like and what the schedule is.</p>
+
+<p>Then say, explicitly, <strong>how idempotency is achieved</strong> — overwrite by partition, merge on a key, or dedup on read. Volunteering this is one of the strongest signals available in a design conversation, because it shows you are thinking about the second run rather than the first.</p>
+
+<h2>Step 7 — Break it on purpose</h2>
+
+<p>This is the step that separates a strong design from a merely plausible one. Walk through the failure modes out loud, before anyone asks:</p>
+
+<ul>
+  <li>The job fails halfway. What state is left? Is a retry safe?</li>
+  <li>The source is down for twelve hours. Do we alert, wait, or publish stale data — and who decides?</li>
+  <li>Data arrives three days late. Does it get counted? Where does it land?</li>
+  <li>The source adds or renames a column. What breaks, and how do we find out?</li>
+  <li>Someone reruns last month by accident. What is the blast radius?</li>
+  <li>Volume goes up tenfold overnight. What breaks first?</li>
+  <li>A bug shipped two weeks ago. How do we fix history, and what do we tell people who used the old numbers?</li>
+</ul>
+
+<p>You will not have a perfect answer to all seven. That is fine — "we would accept publishing stale data with a banner, and here is why" is a legitimate answer. Having <em>considered</em> them is the point.</p>
+
+<h2>Step 8 — Say how it is operated</h2>
+
+<p>Monitoring, tests, alerts, ownership, runbook, and an order-of-magnitude cost estimate. Name the biggest cost driver and what you would cut first if the bill doubled.</p>
+
+<p>Designs are often presented as though they will be built and then exist. They will be operated for years by people who did not build them, and a design that does not describe its own operation is incomplete.</p>
+
+<h2>Applying it when the requirements are vague</h2>
+
+<p>You will often be handed "we want a data platform". Do not design one.</p>
+
+<ol>
+  <li>Find <strong>one</strong> consumer with <strong>one</strong> concrete question.</li>
+  <li>Build the thinnest end-to-end path that answers it: one source, raw, one mart, one dashboard.</li>
+  <li>Put orchestration, tests and monitoring around that thin path <em>from day one</em> — those are what make it a system rather than a script.</li>
+  <li>Add the second source. Then the third. Generalise only when you have seen the same problem three times.</li>
+</ol>
+
+<div class="note">
+  <div>
+    <span class="note-title">Why the thin slice wins</span>
+    <p>Platforms designed up front for imagined future needs are consistently worse than platforms that grew from one working pipeline — because the imagined needs are wrong in ways you cannot discover without a real consumer, and every wrong guess becomes a constraint you then design around.</p>
+    <p>The vertical slice is the correct first move almost every time, and saying so in an interview is a better answer than a comprehensive architecture diagram.</p>
+  </div>
+</div>
+
+<h2>Checklist</h2>
+
+<ul>
+  <li>Recite the eight steps in order, and explain why tool selection sits at step four rather than step one</li>
+  <li>List the eight things you would ask for numbers on before proposing a design</li>
+  <li>Run the seven failure-mode questions against a system you already know</li>
+  <li>Explain what you would build first when handed a vague "we want a data platform" brief</li>
+  <li>Volunteer, unprompted, how idempotency is achieved in a design you are describing</li>
+</ul>

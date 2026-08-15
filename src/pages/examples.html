@@ -1,0 +1,141 @@
+<!--meta
+{
+  "title": "Worked examples",
+  "navTitle": "Worked examples",
+  "description": "Two complete designs with the reasoning spelled out — a batch e-commerce warehouse and a near-real-time event pipeline.",
+  "eyebrow": "Designing a system",
+  "lede": "Two designs carried through the framework end to end, including the trade-offs that were accepted rather than solved. The reasoning is the point, not the architecture."
+}
+-->
+
+<h2>Example 1 — An analytics warehouse for an e-commerce company</h2>
+
+<h3>Step 2: the numbers</h3>
+
+<div class="table-wrap">
+<table>
+  <tbody>
+    <tr><td><strong>Sources</strong></td><td>Postgres app database (50 M orders, ~2 M rows updated daily), Stripe API, Google Ads API</td></tr>
+    <tr><td><strong>Consumers</strong></td><td>12 analysts writing SQL; about 30 dashboards</td></tr>
+    <tr><td><strong>Freshness</strong></td><td>Hourly is plenty. Daily acceptable for ad spend</td></tr>
+    <tr><td><strong>History</strong></td><td>5 years</td></tr>
+    <tr><td><strong>Correctness</strong></td><td>Revenue must reconcile with Stripe to the cent</td></tr>
+    <tr><td><strong>Mutability</strong></td><td>Orders are updated (status changes) and cancelled orders are hard-deleted</td></tr>
+    <tr><td><strong>Access</strong></td><td>Emails and addresses restricted to two people</td></tr>
+    <tr><td><strong>Budget</strong></td><td>Modest. Team of two data engineers</td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure class="diagram" data-diagram="example-ecom">
+  <figcaption>Three sources, three different ingestion patterns — because the right pattern is a property of the source, not of the platform.</figcaption>
+</figure>
+
+<h3>The decisions, and why</h3>
+
+<p><strong>A cloud warehouse, not a lakehouse.</strong> The data is in the low terabytes, the team is two SQL-fluent people, and there is no requirement for multiple query engines or open formats. A lakehouse would add compaction, table maintenance and tuning work to a team that has no spare capacity for it. Complexity would buy nothing here.</p>
+
+<p><strong>CDC for Postgres.</strong> This is forced by the requirements, not chosen by preference. Orders get updated as their status changes, and cancelled orders are hard-deleted. A high-water-mark on <code>updated_at</code> would keep deleted orders forever — silently inflating order counts with no error anywhere — and would also miss the bulk migration that touched 400,000 rows without updating timestamps. CDC sees both.</p>
+
+<p><strong>Full snapshot for Google Ads.</strong> The table is small, and the vendor restates the last three days of attribution data anyway. A snapshot self-corrects for free; incremental logic here would be more code doing a worse job.</p>
+
+<p><strong>Incremental with a three-day lookback for Stripe.</strong> Refunds and disputes attach to charges from weeks ago, so a strict watermark would miss them. Reprocessing three days each run and upserting on <code>charge_id</code> is cheap insurance — a few minutes of compute against a class of silent revenue errors.</p>
+
+<p><strong>Layers.</strong> <code>raw</code> (untouched, never edited, five years kept) → <code>staging</code> (typed, deduplicated, one row per entity) → <code>marts</code> (a star schema: <code>fct_order_items</code>, <code>dim_customer</code>, <code>dim_product</code>, <code>dim_date</code>).</p>
+
+<p><strong>Grain, declared before any SQL:</strong> one row per <em>order line item</em>. Analysts need revenue per product, so the order-level grain would not support the questions being asked. Writing this down first prevents the mixed-grain disaster described in <a href="modeling.html">Modelling</a>.</p>
+
+<p><strong>SCD Type 2 on <code>dim_customer</code>, for two fields only</strong> — <code>country</code> and <code>segment</code>. Historical reporting must attribute an old order to the segment the customer was in at the time. Everything else on that dimension is Type 1, because versioning fields nobody asks historical questions about is pure cost.</p>
+
+<p><strong>PII.</strong> Emails and addresses stay in a restricted schema that two people can query. <code>dim_customer</code> in marts carries a hashed identifier and coarse geography — enough to group and cohort, not enough to identify.</p>
+
+<p><strong>Idempotency.</strong> Marts are insert-overwrite by <code>order_date</code> partition. The Stripe load merges on <code>charge_id</code>. Both are safe to rerun, which makes the three-day lookback and any future backfill safe by construction.</p>
+
+<p><strong>Tests.</strong> Uniqueness on every mart primary key, not-null on foreign keys, freshness on <code>fct_order_items</code> — and a <strong>daily reconciliation</strong> comparing warehouse revenue against Stripe's own reported total. That last one is the test that catches errors nothing else would.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">The trade-offs accepted, not solved</span>
+    <p>CDC adds a moving part and requires replication access plus cooperation from whoever owns the database. Accepted, because the alternative silently loses deleted orders.</p>
+    <p>Hourly refresh means dashboards can be up to sixty minutes stale. Accepted explicitly by the consumers, in writing, rather than assumed.</p>
+    <p>The three-day Stripe lookback costs a little compute every day to prevent an error class that might occur monthly. Accepted, because a silent revenue error is far more expensive than the compute.</p>
+    <p>Naming what you accepted is as important as naming what you chose. A design with no acknowledged trade-offs has not been examined.</p>
+  </div>
+</div>
+
+<h2>Example 2 — Clickstream events with near-real-time product analytics</h2>
+
+<h3>Step 2: the numbers</h3>
+
+<div class="table-wrap">
+<table>
+  <tbody>
+    <tr><td><strong>Volume</strong></td><td>50 M events/day — about 600/sec average, 4,000/sec peak. ~1.5 KB each</td></tr>
+    <tr><td><strong>Consumers</strong></td><td>Product analytics team, plus a live dashboard for a launch</td></tr>
+    <tr><td><strong>Freshness</strong></td><td>5 minutes for the live dashboard; daily for behavioural aggregates</td></tr>
+    <tr><td><strong>Lateness</strong></td><td>Mobile clients go offline. Measured p99.9 arrival delay: about 4 days</td></tr>
+    <tr><td><strong>Correctness</strong></td><td>Approximate is fine for the live view. The daily aggregate must be right</td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure class="diagram" data-diagram="example-events">
+  <figcaption>Two paths from one stream, serving two different promises. The split is deliberate, because one pipeline cannot be both fast and complete.</figcaption>
+</figure>
+
+<h3>The decisions, and why</h3>
+
+<p><strong>A dual path, deliberately.</strong> The live dashboard tolerates approximation; the daily aggregate does not. Rather than forcing one pipeline to satisfy both — which would mean either slow live numbers or wrong daily ones — the stream serves speed and the batch serves truth.</p>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">Is this not Lambda, which you said was flawed?</span>
+    <p>It is Lambda-shaped, and the flaw does not apply here. Lambda's problem is <em>two implementations of the same business logic</em>, which drift apart until the two answers disagree and nobody can say which is right.</p>
+    <p>These two paths compute genuinely <em>different</em> things: the stream produces live counters, the batch produces sessions and funnels. There is no shared logic to drift, so the criticism does not bite.</p>
+    <p>The test to apply: if both paths implement the same definition, you have Lambda's problem. If they answer different questions, you have two pipelines that happen to share a source.</p>
+  </div>
+</div>
+
+<p><strong>Kafka partitioned by <code>user_id</code></strong>, so one user's events stay in order — which sessionisation requires. Seven-day retention sets the replay budget, and therefore the deadline on noticing a bug.</p>
+
+<p><strong>Land raw to object storage first</strong>, unmodified, from the same topic. When a client-side tracking bug is found — and with mobile clients, one will be — all history can be reprocessed.</p>
+
+<p><strong>A seven-day lookback on the batch path</strong>, chosen from the measured p99.9 of four days rather than picked from the air. Numbers for the last week are therefore expected to move slightly, which is documented for consumers rather than hidden.</p>
+
+<p><strong>Both timestamps stored.</strong> <code>event_time</code> from the client — untrusted, clock-skewed, and clamped to a sane range before use — and <code>ingested_at</code> from the server, which is trusted. Aggregates use event time; operational monitoring uses ingestion time.</p>
+
+<p><strong>Idempotency.</strong> Clients generate an <code>event_id</code> UUID at the moment the event occurs, not at ingestion. The batch deduplicates on it with <code>ROW_NUMBER()</code>, because at-least-once delivery and client-side retries both produce duplicates.</p>
+
+<p><strong>Compaction.</strong> The streaming sink writes every five minutes, which would produce roughly 105,000 files a year per topic. A nightly job rewrites each day's partition into ~256 MB files. This is scheduled work, budgeted for, not something to discover later.</p>
+
+<p><strong>Serving.</strong> Live counters go to Redis, not the warehouse. A dashboard polling every ten seconds against a warehouse would be both slow and startlingly expensive — see the dashboard cost trap in <a href="cost.html">Cost and governance</a>.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">The trade-offs accepted</span>
+    <p>Two code paths mean two things to operate, and one more thing for an on-call engineer to understand. Accepted, because the alternative fails one of the two requirements.</p>
+    <p>Live and daily numbers will not match exactly. Accepted — and handled by labelling the live panel as approximate. Managing that expectation is part of the design, not an afterthought.</p>
+  </div>
+</div>
+
+<h2>What both examples have in common</h2>
+
+<ul>
+  <li>The ingestion pattern was <strong>derived from the source's mutability</strong>, not chosen by preference.</li>
+  <li>Idempotency was stated explicitly for every write, rather than assumed.</li>
+  <li>The lateness policy came from a <strong>measured</strong> distribution, not an intuition.</li>
+  <li>Raw data is landed unmodified in both, for the same reason: future bugs.</li>
+  <li>The trade-offs are named and accepted, not hidden.</li>
+</ul>
+
+<p>That list is roughly what an interviewer is listening for, and roughly what a colleague reviewing your design will check.</p>
+
+<h2>Checklist</h2>
+
+<ul>
+  <li>Explain why example 1 uses three different ingestion patterns for three sources</li>
+  <li>Say why CDC is forced rather than preferred in example 1, referring to a specific requirement</li>
+  <li>Explain when a Lambda-shaped architecture is acceptable and when it is not</li>
+  <li>Justify a lookback window using a lateness distribution</li>
+  <li>Name three trade-offs each design accepted rather than solved</li>
+</ul>

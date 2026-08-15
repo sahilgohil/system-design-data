@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 318" role="img" class="dg">
+  <title>Three delivery guarantees</title><desc>At-most-once loses data, at-least-once duplicates, exactly-once is achieved by making writes idempotent</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Three delivery guarantees</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-muted" x="16" y="16" width="229.33333333333334" height="248.2" rx="10" ry="10"/>
+  <text class="dg-label" x="130.66666666666669" y="49.1" font-size="16" text-anchor="middle" font-weight="500">At-most-once</text>
+  <circle class="dg-dot" cx="36" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="48" y="81.5" font-size="12.5" text-anchor="start">Rule: send it, never retry</text>
+  <circle class="dg-dot" cx="36" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="48" y="108.6" font-size="12.5" text-anchor="start">On failure: the record is</text>
+  <text class="dg-sub" x="48" y="126.7" font-size="12.5" text-anchor="start">gone</text>
+  <circle class="dg-dot" cx="36" cy="151.1" r="2.5"/>
+  <text class="dg-sub" x="48" y="153.8" font-size="12.5" text-anchor="start">Risk: silent data loss</text>
+  <circle class="dg-dot" cx="36" cy="178.2" r="2.5"/>
+  <text class="dg-sub" x="48" y="180.9" font-size="12.5" text-anchor="start">Almost never acceptable</text>
+  <rect class="dg-box dg-box-accent" x="265.33333333333337" y="16" width="229.33333333333334" height="248.2" rx="10" ry="10"/>
+  <text class="dg-label" x="380.00000000000006" y="49.1" font-size="16" text-anchor="middle" font-weight="500">At-least-once</text>
+  <circle class="dg-dot" cx="285.33333333333337" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="297.33333333333337" y="81.5" font-size="12.5" text-anchor="start">Rule: retry until</text>
+  <text class="dg-sub" x="297.33333333333337" y="99.6" font-size="12.5" text-anchor="start">acknowledged</text>
+  <circle class="dg-dot" cx="285.33333333333337" cy="124.0" r="2.5"/>
+  <text class="dg-sub" x="297.33333333333337" y="126.7" font-size="12.5" text-anchor="start">On failure: the record</text>
+  <text class="dg-sub" x="297.33333333333337" y="144.8" font-size="12.5" text-anchor="start">arrives twice</text>
+  <circle class="dg-dot" cx="285.33333333333337" cy="169.2" r="2.5"/>
+  <text class="dg-sub" x="297.33333333333337" y="171.9" font-size="12.5" text-anchor="start">Risk: duplicates</text>
+  <circle class="dg-dot" cx="285.33333333333337" cy="196.3" r="2.5"/>
+  <text class="dg-sub" x="297.33333333333337" y="199.1" font-size="12.5" text-anchor="start">What real systems actually</text>
+  <text class="dg-sub" x="297.33333333333337" y="217.2" font-size="12.5" text-anchor="start">give you</text>
+  <rect class="dg-box dg-box-muted" x="514.6666666666667" y="16" width="229.33333333333334" height="248.2" rx="10" ry="10"/>
+  <text class="dg-label" x="629.3333333333334" y="49.1" font-size="16" text-anchor="middle" font-weight="500">Effectively-once</text>
+  <circle class="dg-dot" cx="534.6666666666667" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="546.6666666666667" y="81.5" font-size="12.5" text-anchor="start">Rule: at-least-once plus</text>
+  <text class="dg-sub" x="546.6666666666667" y="99.6" font-size="12.5" text-anchor="start">an idempotent write</text>
+  <circle class="dg-dot" cx="534.6666666666667" cy="124.0" r="2.5"/>
+  <text class="dg-sub" x="546.6666666666667" y="126.7" font-size="12.5" text-anchor="start">On failure: the retry</text>
+  <text class="dg-sub" x="546.6666666666667" y="144.8" font-size="12.5" text-anchor="start">overwrites, it does not</text>
+  <text class="dg-sub" x="546.6666666666667" y="162.9" font-size="12.5" text-anchor="start">add</text>
+  <circle class="dg-dot" cx="534.6666666666667" cy="187.3" r="2.5"/>
+  <text class="dg-sub" x="546.6666666666667" y="190.1" font-size="12.5" text-anchor="start">Risk: needs a stable key</text>
+  <text class="dg-sub" x="546.6666666666667" y="208.2" font-size="12.5" text-anchor="start">or partition</text>
+  <circle class="dg-dot" cx="534.6666666666667" cy="232.6" r="2.5"/>
+  <text class="dg-sub" x="546.6666666666667" y="235.3" font-size="12.5" text-anchor="start">What you build on top</text>
+  </g>
+</svg>

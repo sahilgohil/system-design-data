@@ -1,0 +1,149 @@
+<!--meta
+{
+  "title": "Orchestration",
+  "navTitle": "Orchestration",
+  "description": "DAGs, scheduling, backfills, and the logical-date rule that separates a pipeline from a script on a timer.",
+  "eyebrow": "The building blocks",
+  "lede": "What runs, in what order, when, and what happens when it fails. This is the layer that turns a collection of scripts into a system."
+}
+-->
+
+<h2>Why cron is not enough</h2>
+
+<p>The obvious way to run a pipeline daily is a cron entry. It works for exactly one script. Then you add a second that must run after the first, so you schedule it half an hour later and hope. Then the first job occasionally takes 45 minutes, and now the second one reads yesterday's data without complaining. Nobody notices for a week.</p>
+
+<p>That gap — between "it ran" and "it ran after the thing it depends on succeeded" — is the reason orchestrators exist.</p>
+
+<h2>The DAG</h2>
+
+<p>Work is modelled as a <strong>directed acyclic graph</strong>: tasks with declared dependencies, arrows one way, no loops. The orchestrator works out what can run in parallel, what must wait, and what to skip when something upstream fails.</p>
+
+<figure class="diagram" data-diagram="dag">
+  <figcaption>A realistic daily DAG. Note that testing is a task with the power to stop publication, not a report emailed afterwards.</figcaption>
+</figure>
+
+<p>The common tools are Airflow (the incumbent, and the one most job listings name), with Dagster and Prefect as more modern, Python- and asset-first alternatives. Warehouse-native schedulers cover simpler cases.</p>
+
+<p>What an orchestrator gives you beyond a timer:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Capability</th><th>What it prevents</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Dependency management</strong></td><td>A task reading data its upstream has not written yet</td></tr>
+    <tr><td><strong>Retries with backoff</strong></td><td>A one-second network blip becoming a failed day</td></tr>
+    <tr><td><strong>Sensors and triggers</strong></td><td>Guessing at a schedule when you could wait for the file to actually land</td></tr>
+    <tr><td><strong>Backfills</strong></td><td>Hand-editing dates in a script forty times to rebuild a month</td></tr>
+    <tr><td><strong>Run history and logs</strong></td><td>Having no idea what happened on the 14th</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>The two rules that matter more than the tool</h2>
+
+<p>You can learn any orchestrator's syntax in a week. These two properties are what actually determine whether your pipeline is safe, and they hold regardless of which tool you pick.</p>
+
+<h3>Rule 1 — Every task must be idempotent</h3>
+
+<p>Running a task twice for the same logical period must produce the same result as running it once. This is what makes retries and backfills safe, and it is the property beginners most often violate without realising.</p>
+
+<pre><code>-- NOT idempotent: the retry doubles every row
+INSERT INTO daily_sales
+SELECT ... FROM orders WHERE dt = '2026-03-01';
+
+-- Idempotent: the retry replaces the same partition
+DELETE FROM daily_sales WHERE dt = '2026-03-01';
+INSERT INTO daily_sales
+SELECT ... FROM orders WHERE dt = '2026-03-01';
+
+-- Idempotent and atomic: MERGE on a stable business key
+MERGE INTO daily_sales t
+USING staged s ON t.dt = s.dt AND t.sku = s.sku
+WHEN MATCHED THEN UPDATE SET ...
+WHEN NOT MATCHED THEN INSERT ...;</code></pre>
+
+<p>The full treatment — including what to do when there is no stable key — is in <a href="reliability.html">Reliability</a>. For now, hold onto the test: <em>if this task ran twice by accident, would anyone be able to tell?</em></p>
+
+<h3>Rule 2 — Parameterise by logical date, never by "now"</h3>
+
+<p>A task should receive the period it is processing as a parameter, and must never call <code>CURRENT_DATE</code> or <code>now()</code> to work out what to do.</p>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">What happens when you break this rule</span>
+    <p>It is June. You need to rebuild March because a bug has been found. You trigger the March 1st run.</p>
+    <p>The task calls <code>CURRENT_DATE</code>, gets June 14th, reads June's data, and writes it into March's partition. Your history is now not merely still wrong — it is wrong in a new and much more confusing way, and the job reported success.</p>
+    <p>Airflow calls the correct parameter the <em>logical date</em> or <em>data interval</em>; every orchestrator has an equivalent. Use it in every query, every file path, and every API call. There are no exceptions worth making.</p>
+  </div>
+</div>
+
+<div class="analogy">
+  <span class="analogy-label">Analogy</span>
+  <p>A recipe that says "use whatever is in the fridge" produces a different meal every time it is followed. A recipe that lists its ingredients produces the same meal today, next week, or when someone else follows it.</p>
+  <p>The logical date is the ingredient list. <code>CURRENT_DATE</code> is the fridge.</p>
+</div>
+
+<h2>Backfills</h2>
+
+<p>A backfill is rerunning a pipeline over a past date range — because you fixed a bug, added a column, or a source restated its data. It is one of the most common activities in the job, which is why the two rules above matter so much: <strong>a backfill is just idempotency and logical dates being exercised at volume.</strong></p>
+
+<p>Three practical points:</p>
+
+<ul>
+  <li><strong>Control the concurrency.</strong> Backfilling a year of daily partitions all at once will either exhaust your warehouse or cost a startling amount. Most orchestrators let you cap parallel runs; use it.</li>
+  <li><strong>Backfill into a separate location first</strong> when the change is risky, then swap. Rebuilding in place means a half-finished backfill is visible to users as half-wrong data.</li>
+  <li><strong>Watch out for the downstream.</strong> Rebuilding a table often means everything derived from it is now stale. Know what depends on what before you start — this is what lineage is for.</li>
+</ul>
+
+<h2>Failures, retries and alerts</h2>
+
+<p>Failures are normal. Design for them rather than treating each as a surprise.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Failure</th><th>Right response</th></tr></thead>
+  <tbody>
+    <tr><td>Transient — network blip, brief API 503</td><td>Automatic retry with exponential backoff. No human involved</td></tr>
+    <tr><td>Upstream late — source has not delivered</td><td>A sensor that waits, then alerts after a defined timeout. Do not silently process nothing</td></tr>
+    <tr><td>Data wrong — a test failed</td><td>Stop before publishing. A blocked pipeline is far cheaper than a published wrong number</td></tr>
+    <tr><td>Logic broken — the code raised an error</td><td>Alert a human. This is not retryable and retrying just delays the fix</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">Success is not the same as correctness</span>
+    <p>The most dangerous state in a data platform is a green dashboard. Every task succeeded, every run is a tick — and the source stopped sending rows four days ago, so your job has been faithfully processing an empty file each morning.</p>
+    <p>Task status tells you your <em>code</em> ran. It says nothing about whether the <em>data</em> is right. You need both, and the second one is the subject of <a href="quality.html">Quality</a>.</p>
+  </div>
+</div>
+
+<h2>How to structure a DAG</h2>
+
+<p>A few conventions that consistently pay off:</p>
+
+<ul>
+  <li><strong>One task, one responsibility.</strong> A task that extracts, transforms and loads cannot be retried partway, and its failure tells you nothing about which part broke.</li>
+  <li><strong>Make tasks small enough to rerun cheaply</strong> but large enough that the DAG is readable. A 300-task DAG nobody can look at is its own kind of failure.</li>
+  <li><strong>Prefer sensors to sleeping.</strong> "Wait until the file exists" is robust; "start at 03:00 and hope" is not.</li>
+  <li><strong>Keep business logic out of the orchestrator.</strong> Airflow should decide <em>when</em> things run; SQL and code should decide <em>what</em> they do. Mixing the two makes the logic untestable outside the scheduler.</li>
+</ul>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">The exercise that teaches this page</span>
+    <p>Schedule a pipeline daily. Let it run for a week. Then delete the last five days of output and backfill them.</p>
+    <p>If your output afterwards is identical to what it was before, your pipeline is idempotent and correctly parameterised. If you get duplicate rows, or five copies of today's data, you have just found the bug this entire lesson exists to prevent — and you found it on your own laptop rather than in production.</p>
+  </div>
+</div>
+
+<h2>Checklist</h2>
+
+<ul>
+  <li>Explain what an orchestrator provides that cron does not, with a concrete failure cron allows</li>
+  <li>Look at a SQL task and say whether it is idempotent, and fix it if it is not</li>
+  <li>Explain the logical-date rule and describe exactly what goes wrong when a task calls <code>CURRENT_DATE</code></li>
+  <li>Plan a backfill of one month, naming the three things you would check before starting</li>
+  <li>Say why a fully green DAG is not evidence that the data is correct</li>
+</ul>

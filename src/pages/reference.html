@@ -1,0 +1,122 @@
+<!--meta
+{
+  "title": "Reference",
+  "navTitle": "Glossary & numbers",
+  "description": "Glossary, rules of thumb worth memorising, ten principles, and where to read next.",
+  "eyebrow": "Keep going",
+  "lede": "The lookup page. Terms you will hear in meetings, numbers worth carrying in your head, and the four books that matter."
+}
+-->
+
+<h2>Numbers worth memorising</h2>
+
+<p>Having a figure to hand is what lets you say "that will not work" in a design meeting rather than "hmm, maybe".</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Rule</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Target Parquet file size</td><td>128 MB – 1 GB</td></tr>
+    <tr><td>Target partition size</td><td>100 MB – 1 GB</td></tr>
+    <tr><td>Typical CSV → Parquet size reduction</td><td>5–10×</td></tr>
+    <tr><td>Typical columnar compression on a single column</td><td>5–20×</td></tr>
+    <tr><td>Object storage cost</td><td>~$20–25 per TB per month</td></tr>
+    <tr><td>Relative cost of streaming versus batch engineering</td><td>Roughly 5–10× the effort</td></tr>
+    <tr><td>"Just use a warehouse" threshold</td><td>Comfortably under ~10 TB</td></tr>
+    <tr><td>"One machine is fine" threshold</td><td>Far higher than beginners assume — DuckDB and Polars handle hundreds of GB on a laptop</td></tr>
+    <tr><td>Default partition key</td><td>Date</td></tr>
+    <tr><td>Default freshness</td><td>Daily. Justify hourly. Prove the need for streaming</td></tr>
+    <tr><td>Times a source column will change without warning</td><td>More than zero</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Ten principles, condensed</h2>
+
+<ol>
+  <li>Keep raw data forever and never edit it.</li>
+  <li>Make every write idempotent.</li>
+  <li>Parameterise by logical date, never <code>CURRENT_DATE</code>.</li>
+  <li>Partition by what you filter on.</li>
+  <li>Prefer batch until a named decision forces otherwise.</li>
+  <li>Test freshness, volume and uniqueness on everything that matters.</li>
+  <li>Define business logic exactly once.</li>
+  <li>Declare the grain before writing the query.</li>
+  <li>Store both event time and ingestion time.</li>
+  <li>Choose the simplest thing that meets the stated <em>numeric</em> requirement — then write down the trade-off you made.</li>
+</ol>
+
+<h2>Glossary</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><strong>ACID</strong></td><td>Atomicity, Consistency, Isolation, Durability — transaction guarantees. Table formats bring them to object storage</td></tr>
+    <tr><td><strong>Backfill</strong></td><td>Rerunning a pipeline over a past date range to repopulate history</td></tr>
+    <tr><td><strong>CDC</strong></td><td>Change Data Capture — reading a database's replication log to stream every insert, update and delete</td></tr>
+    <tr><td><strong>Clustering</strong></td><td>Physically ordering rows within files so file-level statistics become selective. Also called sorting or Z-ordering</td></tr>
+    <tr><td><strong>Compaction</strong></td><td>Rewriting many small files into fewer large ones</td></tr>
+    <tr><td><strong>Data contract</strong></td><td>An agreement between producer and consumer on schema, semantics, freshness and how changes happen</td></tr>
+    <tr><td><strong>DAG</strong></td><td>Directed Acyclic Graph — how orchestrators model task dependencies</td></tr>
+    <tr><td><strong>Denormalisation</strong></td><td>Deliberately duplicating data to avoid joins. Standard practice in analytics</td></tr>
+    <tr><td><strong>Dimension</strong></td><td>A table of descriptive context — who, what, where</td></tr>
+    <tr><td><strong>ELT / ETL</strong></td><td>Load-then-transform versus transform-then-load</td></tr>
+    <tr><td><strong>Event time</strong></td><td>When something actually happened, as opposed to when you received it</td></tr>
+    <tr><td><strong>Fact</strong></td><td>A table of things that happened, holding measures and foreign keys</td></tr>
+    <tr><td><strong>Grain</strong></td><td>What exactly one row of a table represents</td></tr>
+    <tr><td><strong>High-water mark</strong></td><td>The largest timestamp or ID seen so far, used to pull only newer rows</td></tr>
+    <tr><td><strong>Idempotent</strong></td><td>Running it twice gives the same result as running it once</td></tr>
+    <tr><td><strong>Lakehouse</strong></td><td>Warehouse-like semantics — ACID, schema, time travel — over open files in object storage</td></tr>
+    <tr><td><strong>Lineage</strong></td><td>The dependency graph of which datasets feed which</td></tr>
+    <tr><td><strong>Logical date</strong></td><td>The period a pipeline run is processing, passed in as a parameter</td></tr>
+    <tr><td><strong>Materialisation</strong></td><td>How a model is persisted: view, table, or incremental</td></tr>
+    <tr><td><strong>OLAP / OLTP</strong></td><td>Analytical versus transactional workloads</td></tr>
+    <tr><td><strong>Partition</strong></td><td>A physical subdivision of a table, usually by date. Also a unit of parallel work in distributed engines</td></tr>
+    <tr><td><strong>Predicate pushdown</strong></td><td>Pushing filters into the storage layer so unneeded data is never read</td></tr>
+    <tr><td><strong>Restatement</strong></td><td>Historical numbers changing because late or corrected data arrived</td></tr>
+    <tr><td><strong>SCD</strong></td><td>Slowly Changing Dimension. Type 1 overwrites, Type 2 versions</td></tr>
+    <tr><td><strong>Schema evolution</strong></td><td>Changing a schema over time without breaking readers</td></tr>
+    <tr><td><strong>Shuffle</strong></td><td>Network movement of data between nodes. Usually the expensive step</td></tr>
+    <tr><td><strong>Skew</strong></td><td>Uneven data distribution causing one task to dominate runtime</td></tr>
+    <tr><td><strong>Star schema</strong></td><td>One fact table joined to surrounding dimensions</td></tr>
+    <tr><td><strong>Surrogate key</strong></td><td>A generated key identifying one <em>version</em> of a record, as opposed to the business key identifying the thing itself</td></tr>
+    <tr><td><strong>Table format</strong></td><td>Iceberg, Delta, Hudi — the metadata layer that turns files into a table</td></tr>
+    <tr><td><strong>Upsert / MERGE</strong></td><td>Insert if new, update if existing, keyed on a business key</td></tr>
+    <tr><td><strong>Watermark</strong></td><td>An engine's estimate of how complete event-time data is, which lets windows close</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Four books, in reading order</h2>
+
+<div class="cards">
+  <div class="card">
+    <span class="chip green">Read first</span>
+    <h3 data-no-toc>Fundamentals of Data Engineering</h3>
+    <p>Reis &amp; Housley. The best single overview of the field, and the closest thing to an expanded version of this course. Start here.</p>
+  </div>
+  <div class="card">
+    <span class="chip">Reference</span>
+    <h3 data-no-toc>The Data Warehouse Toolkit</h3>
+    <p>Kimball &amp; Ross. The canonical text on dimensional modelling. Dense — read the first four chapters properly, then treat it as a lookup.</p>
+  </div>
+  <div class="card">
+    <span class="chip amber">After you build</span>
+    <h3 data-no-toc>Designing Data-Intensive Applications</h3>
+    <p>Kleppmann. The deep foundations: replication, partitioning, consistency, consensus, stream processing. Harder, and worth it — but read it once you have shipped something.</p>
+  </div>
+  <div class="card">
+    <span class="chip">If you go deep</span>
+    <h3 data-no-toc>Streaming Systems</h3>
+    <p>Akidau, Chernyak &amp; Lax. The clearest treatment of event time and watermarks anywhere. Only when streaming becomes your problem.</p>
+  </div>
+</div>
+
+<h2>Things to practise on</h2>
+
+<ul>
+  <li><strong>DuckDB</strong> — the best local sandbox for columnar analytics. No account, no cluster, no setup.</li>
+  <li><strong>Public datasets</strong> — NYC TLC trip records, GH Archive, Wikipedia pageviews, or any large Kaggle set.</li>
+  <li><strong>Documentation worth reading directly</strong> — dbt's guides on incremental models and testing; the Iceberg or Delta specification overview; Kafka's design documentation. Primary sources are consistently better than blog summaries in this field, because the summaries all copy each other.</li>
+</ul>

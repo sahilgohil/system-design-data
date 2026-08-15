@@ -1,0 +1,136 @@
+<!--meta
+{
+  "title": "Transforming the data",
+  "navTitle": "Processing",
+  "description": "ETL versus ELT, the four terms that explain distributed processing performance, and the streaming concepts worth knowing early.",
+  "eyebrow": "The building blocks",
+  "lede": "Raw data is almost never usable data. This lesson is about the machinery that turns one into the other, and the handful of terms that explain why it is sometimes slow."
+}
+-->
+
+<h2>Why transformation exists at all</h2>
+
+<p>Raw data arrives shaped for the system that produced it, not for the question you want to ask. Timestamps are strings. Money is in three currencies. The same customer appears as <code>ACME Corp</code>, <code>Acme Corporation</code> and <code>acme corp.</code> in three systems. Someone's "order" table has one row per shipment, and someone else's has one row per basket.</p>
+
+<p>Transformation is the work of turning that into something a person can query without a folklore of caveats. It is where most of the code in a data platform lives.</p>
+
+<h2>ETL and ELT: where the T goes</h2>
+
+<p>The classic acronym is <strong>ETL</strong>: Extract, Transform, Load. Take the data out, clean it in a separate engine, then load the clean result. This was the standard for decades, because warehouse compute was scarce and expensive and you did not want to waste it on cleaning.</p>
+
+<p>Then warehouse compute became cheap and elastic, and the order flipped.</p>
+
+<figure class="diagram" data-diagram="etl-elt">
+  <figcaption>The letters are the same; the consequence is that in ELT your raw data survives, so a bug in transformation logic is recoverable without going back to the source.</figcaption>
+</figure>
+
+<p>ELT won for four reasons, and it is worth being able to state them:</p>
+
+<ul>
+  <li><strong>Raw data is preserved</strong>, so you can re-derive anything when logic changes or a bug is found.</li>
+  <li><strong>Warehouse compute is elastic</strong> — you rent it for the minutes the transformation runs.</li>
+  <li><strong>SQL is accessible</strong> to far more people than Scala or Java, so analysts can own transformations.</li>
+  <li><strong>Logic lives in version control</strong> alongside tests, rather than inside a GUI tool nobody can diff.</li>
+</ul>
+
+<p>ETL is still right in three situations: heavy unstructured work (parsing PDFs, images, logs) that SQL cannot do; personal data that must be masked <em>before</em> it lands anywhere; and transformations needing a library your warehouse cannot run.</p>
+
+<h2>The four words that explain distributed performance</h2>
+
+<p>When one machine is not enough — Spark, or a warehouse's internal engine — work is split across many. You do not need to know how the scheduler works, but four terms explain most performance problems you will meet, and knowing them turns "the job is slow" into an actual diagnosis.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Term</th><th>What it is</th><th>Symptom when it goes wrong</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Partition</strong></td><td>A chunk of data one task processes</td><td>Too few: no parallelism, one core busy. Too many: scheduling overhead dominates</td></tr>
+    <tr><td><strong>Shuffle</strong></td><td>Moving data across the network so related rows meet on one node. Required by joins, <code>GROUP BY</code> and sorts</td><td>The slow stage. Almost always the slow stage</td></tr>
+    <tr><td><strong>Skew</strong></td><td>One partition far larger than the rest</td><td>199 tasks finish in seconds, one runs for an hour</td></tr>
+    <tr><td><strong>Spill</strong></td><td>A task exceeds memory and writes to disk</td><td>Sudden order-of-magnitude slowdown; usually caused by skew</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">The classic skew story</span>
+    <p>A job that ran in 8 minutes now takes 90. Nothing changed in the code. The cause is almost always a join key where one value dominates: a <code>NULL</code> <code>user_id</code>, or a "guest checkout" account that holds 40% of all orders.</p>
+    <p>Every row with that key must land on one node, so one task does 40% of the work alone while the cluster idles. Adding machines does nothing — this is why "just make the cluster bigger" so often fails to help.</p>
+    <p>The tell: look at task durations in the UI. Even distribution means a genuine scale problem; one outlier means skew.</p>
+  </div>
+</div>
+
+<h2>The SQL transformation layer</h2>
+
+<p>Modern practice is to express transformations as version-controlled SQL models with declared dependencies. <strong>dbt</strong> is the dominant tool here, with SQLMesh as a notable alternative.</p>
+
+<p>The value is not the SQL — you could always write SQL. It is everything around it:</p>
+
+<ul>
+  <li><strong>Dependency resolution.</strong> You write <code>ref('stg_orders')</code> instead of a table name, and the tool works out the build order.</li>
+  <li><strong>Environments.</strong> The same code builds into a dev schema and a prod schema.</li>
+  <li><strong>Tests.</strong> Uniqueness, not-null and referential assertions run as part of the build.</li>
+  <li><strong>Documentation and lineage.</strong> Generated from the code, so it is accurate rather than aspirational.</li>
+</ul>
+
+<p>If you learn one transformation tool, learn this category. It is the closest thing the field has to a default.</p>
+
+<h2>Stream processing, in the amount you need now</h2>
+
+<p>If you process unbounded streams — Flink, Spark Structured Streaming, Kafka Streams — three concepts carry the weight.</p>
+
+<h3>Windows</h3>
+
+<p>You cannot aggregate an infinite stream, so you group by time.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Window</th><th>Shape</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Tumbling</strong></td><td>Fixed, non-overlapping: 10:00–10:05, 10:05–10:10</td><td>Regular reporting buckets</td></tr>
+    <tr><td><strong>Sliding</strong></td><td>Fixed length, overlapping: every minute, covering 5 minutes</td><td>Rolling averages, alerting thresholds</td></tr>
+    <tr><td><strong>Session</strong></td><td>Bounded by inactivity gaps</td><td>User sessions, where the natural end is "they stopped"</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>State</h3>
+
+<p>The running data a job holds between events — counts so far, last value seen, an open session. State must be checkpointed to survive a restart, and it is the main source of operational pain in streaming. A batch job that dies has lost nothing; a stream job that dies has lost its memory of the world unless you arranged otherwise.</p>
+
+<h3>Watermarks</h3>
+
+<p>The engine's estimate of "we have probably now seen everything up to time T", which is what finally allows a window to close and emit a result. Anything arriving later is dropped or diverted, according to a policy you configure. This gets a full treatment in <a href="reliability.html">Reliability</a>, because it is really a correctness topic wearing a performance costume.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">Why streaming is harder, in one sentence</span>
+    <p>In batch, time is a column you filter on; in streaming, time is a property of the system itself — and the moment your correctness depends on the system's opinion of what time it is, everything gets harder.</p>
+  </div>
+</div>
+
+<h2>Full refresh before incremental</h2>
+
+<p>Every transformation faces the same choice: rebuild the whole table, or process only what is new?</p>
+
+<p><strong>Start with full refresh.</strong> It is simple, it is self-correcting, and it exercises every line of your logic on every run. Move to incremental when runtime or cost actually demands it, not in anticipation.</p>
+
+<p>The reason for that ordering is subtle and important: incremental logic is the code path that <em>is not</em> exercised on a normal run. Bugs there hide in the gap between "what a full rebuild would produce" and "what a series of incremental runs produced" — and that gap can grow silently for months. The patterns for doing it safely are in <a href="modeling.html">Modelling</a>.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">Try this</span>
+    <p>Take any transformation you have written and ask: if I ran a full rebuild right now, would the result match what is in the table? If you cannot answer confidently, you have found the most valuable test you could add.</p>
+  </div>
+</div>
+
+<h2>Checklist</h2>
+
+<ul>
+  <li>Explain why ELT replaced ETL, in terms of what became cheap — and name a case where ETL is still correct</li>
+  <li>Define shuffle, and say why joins and <code>GROUP BY</code> cause one</li>
+  <li>Diagnose skew from a description of task durations, and explain why adding nodes will not fix it</li>
+  <li>Say what a transformation tool like dbt provides beyond the ability to run SQL</li>
+  <li>Choose between tumbling, sliding and session windows for a given question</li>
+  <li>Explain why you should reach for full refresh before incremental, in terms of which code paths get exercised</li>
+</ul>

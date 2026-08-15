@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en" data-page="processing">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transforming the data · System Design for Data Engineering</title>
+<meta name="description" content="ETL versus ELT, the four terms that explain distributed processing performance, and the streaming concepts worth knowing early.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html" class="active" aria-current="page">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">The building blocks</p>
+      <h1>Transforming the data</h1>
+      <p class="lede">Raw data is almost never usable data. This lesson is about the machinery that turns one into the other, and the handful of terms that explain why it is sometimes slow.</p>
+      <h2 id="why-transformation-exists-at-all" class="anchored"><a class="anchor" href="#why-transformation-exists-at-all" aria-label="Link to this section">#</a>Why transformation exists at all<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="why-transformation-exists-at-all"><span>Done</span></label></h2>
+
+<p>Raw data arrives shaped for the system that produced it, not for the question you want to ask. Timestamps are strings. Money is in three currencies. The same customer appears as <code>ACME Corp</code>, <code>Acme Corporation</code> and <code>acme corp.</code> in three systems. Someone's "order" table has one row per shipment, and someone else's has one row per basket.</p>
+
+<p>Transformation is the work of turning that into something a person can query without a folklore of caveats. It is where most of the code in a data platform lives.</p>
+
+<h2 id="etl-and-elt-where-the-t-goes" class="anchored"><a class="anchor" href="#etl-and-elt-where-the-t-goes" aria-label="Link to this section">#</a>ETL and ELT: where the T goes<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="etl-and-elt-where-the-t-goes"><span>Done</span></label></h2>
+
+<p>The classic acronym is <strong>ETL</strong>: Extract, Transform, Load. Take the data out, clean it in a separate engine, then load the clean result. This was the standard for decades, because warehouse compute was scarce and expensive and you did not want to waste it on cleaning.</p>
+
+<p>Then warehouse compute became cheap and elastic, and the order flipped.</p>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 309" role="img" class="dg">
+  <title>Transform before or after loading?</title><desc>ETL transforms in a separate engine before loading; ELT loads raw and transforms in the warehouse</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Transform before or after loading?</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-muted" x="16" y="16" width="354" height="239.075" rx="10" ry="10"/>
+  <text class="dg-label" x="193" y="49.1" font-size="16" text-anchor="middle" font-weight="500">ETL · transform first</text>
+  <circle class="dg-dot" cx="36" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="48" y="81.5" font-size="12.5" text-anchor="start">Order: extract, transform, load</text>
+  <circle class="dg-dot" cx="36" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="48" y="108.6" font-size="12.5" text-anchor="start">Where: a separate processing engine</text>
+  <circle class="dg-dot" cx="36" cy="132.9" r="2.5"/>
+  <text class="dg-sub" x="48" y="135.7" font-size="12.5" text-anchor="start">Raw data: often never kept</text>
+  <circle class="dg-dot" cx="36" cy="160.1" r="2.5"/>
+  <text class="dg-sub" x="48" y="162.8" font-size="12.5" text-anchor="start">Fixing a bug in old logic: reprocess from the</text>
+  <text class="dg-sub" x="48" y="180.9" font-size="12.5" text-anchor="start">source</text>
+  <circle class="dg-dot" cx="36" cy="205.3" r="2.5"/>
+  <text class="dg-sub" x="48" y="208.1" font-size="12.5" text-anchor="start">Still right for: heavy parsing, and PII</text>
+  <text class="dg-sub" x="48" y="226.2" font-size="12.5" text-anchor="start">masked before landing</text>
+  <rect class="dg-box dg-box-accent" x="390" y="16" width="354" height="239.075" rx="10" ry="10"/>
+  <text class="dg-label" x="567" y="49.1" font-size="16" text-anchor="middle" font-weight="500">ELT · load first</text>
+  <circle class="dg-dot" cx="410" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="422" y="81.5" font-size="12.5" text-anchor="start">Order: extract, load, transform</text>
+  <circle class="dg-dot" cx="410" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="422" y="108.6" font-size="12.5" text-anchor="start">Where: inside the warehouse, in SQL</text>
+  <circle class="dg-dot" cx="410" cy="132.9" r="2.5"/>
+  <text class="dg-sub" x="422" y="135.7" font-size="12.5" text-anchor="start">Raw data: kept forever</text>
+  <circle class="dg-dot" cx="410" cy="160.1" r="2.5"/>
+  <text class="dg-sub" x="422" y="162.8" font-size="12.5" text-anchor="start">Fixing a bug in old logic: re-run SQL over</text>
+  <text class="dg-sub" x="422" y="180.9" font-size="12.5" text-anchor="start">data you already have</text>
+  <circle class="dg-dot" cx="410" cy="205.3" r="2.5"/>
+  <text class="dg-sub" x="422" y="208.1" font-size="12.5" text-anchor="start">The modern default for most teams</text>
+  </g>
+</svg>
+  <figcaption>The letters are the same; the consequence is that in ELT your raw data survives, so a bug in transformation logic is recoverable without going back to the source.</figcaption>
+</figure>
+
+<p>ELT won for four reasons, and it is worth being able to state them:</p>
+
+<ul>
+  <li><strong>Raw data is preserved</strong>, so you can re-derive anything when logic changes or a bug is found.</li>
+  <li><strong>Warehouse compute is elastic</strong> — you rent it for the minutes the transformation runs.</li>
+  <li><strong>SQL is accessible</strong> to far more people than Scala or Java, so analysts can own transformations.</li>
+  <li><strong>Logic lives in version control</strong> alongside tests, rather than inside a GUI tool nobody can diff.</li>
+</ul>
+
+<p>ETL is still right in three situations: heavy unstructured work (parsing PDFs, images, logs) that SQL cannot do; personal data that must be masked <em>before</em> it lands anywhere; and transformations needing a library your warehouse cannot run.</p>
+
+<h2 id="the-four-words-that-explain-distributed-performance" class="anchored"><a class="anchor" href="#the-four-words-that-explain-distributed-performance" aria-label="Link to this section">#</a>The four words that explain distributed performance<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-four-words-that-explain-distributed-performance"><span>Done</span></label></h2>
+
+<p>When one machine is not enough — Spark, or a warehouse's internal engine — work is split across many. You do not need to know how the scheduler works, but four terms explain most performance problems you will meet, and knowing them turns "the job is slow" into an actual diagnosis.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Term</th><th>What it is</th><th>Symptom when it goes wrong</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Partition</strong></td><td>A chunk of data one task processes</td><td>Too few: no parallelism, one core busy. Too many: scheduling overhead dominates</td></tr>
+    <tr><td><strong>Shuffle</strong></td><td>Moving data across the network so related rows meet on one node. Required by joins, <code>GROUP BY</code> and sorts</td><td>The slow stage. Almost always the slow stage</td></tr>
+    <tr><td><strong>Skew</strong></td><td>One partition far larger than the rest</td><td>199 tasks finish in seconds, one runs for an hour</td></tr>
+    <tr><td><strong>Spill</strong></td><td>A task exceeds memory and writes to disk</td><td>Sudden order-of-magnitude slowdown; usually caused by skew</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">The classic skew story</span>
+    <p>A job that ran in 8 minutes now takes 90. Nothing changed in the code. The cause is almost always a join key where one value dominates: a <code>NULL</code> <code>user_id</code>, or a "guest checkout" account that holds 40% of all orders.</p>
+    <p>Every row with that key must land on one node, so one task does 40% of the work alone while the cluster idles. Adding machines does nothing — this is why "just make the cluster bigger" so often fails to help.</p>
+    <p>The tell: look at task durations in the UI. Even distribution means a genuine scale problem; one outlier means skew.</p>
+  </div>
+</div>
+
+<h2 id="the-sql-transformation-layer" class="anchored"><a class="anchor" href="#the-sql-transformation-layer" aria-label="Link to this section">#</a>The SQL transformation layer<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-sql-transformation-layer"><span>Done</span></label></h2>
+
+<p>Modern practice is to express transformations as version-controlled SQL models with declared dependencies. <strong>dbt</strong> is the dominant tool here, with SQLMesh as a notable alternative.</p>
+
+<p>The value is not the SQL — you could always write SQL. It is everything around it:</p>
+
+<ul>
+  <li><strong>Dependency resolution.</strong> You write <code>ref('stg_orders')</code> instead of a table name, and the tool works out the build order.</li>
+  <li><strong>Environments.</strong> The same code builds into a dev schema and a prod schema.</li>
+  <li><strong>Tests.</strong> Uniqueness, not-null and referential assertions run as part of the build.</li>
+  <li><strong>Documentation and lineage.</strong> Generated from the code, so it is accurate rather than aspirational.</li>
+</ul>
+
+<p>If you learn one transformation tool, learn this category. It is the closest thing the field has to a default.</p>
+
+<h2 id="stream-processing-in-the-amount-you-need-now" class="anchored"><a class="anchor" href="#stream-processing-in-the-amount-you-need-now" aria-label="Link to this section">#</a>Stream processing, in the amount you need now<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="stream-processing-in-the-amount-you-need-now"><span>Done</span></label></h2>
+
+<p>If you process unbounded streams — Flink, Spark Structured Streaming, Kafka Streams — three concepts carry the weight.</p>
+
+<h3 id="windows" class="anchored"><a class="anchor" href="#windows" aria-label="Link to this section">#</a>Windows</h3>
+
+<p>You cannot aggregate an infinite stream, so you group by time.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Window</th><th>Shape</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Tumbling</strong></td><td>Fixed, non-overlapping: 10:00–10:05, 10:05–10:10</td><td>Regular reporting buckets</td></tr>
+    <tr><td><strong>Sliding</strong></td><td>Fixed length, overlapping: every minute, covering 5 minutes</td><td>Rolling averages, alerting thresholds</td></tr>
+    <tr><td><strong>Session</strong></td><td>Bounded by inactivity gaps</td><td>User sessions, where the natural end is "they stopped"</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="state" class="anchored"><a class="anchor" href="#state" aria-label="Link to this section">#</a>State</h3>
+
+<p>The running data a job holds between events — counts so far, last value seen, an open session. State must be checkpointed to survive a restart, and it is the main source of operational pain in streaming. A batch job that dies has lost nothing; a stream job that dies has lost its memory of the world unless you arranged otherwise.</p>
+
+<h3 id="watermarks" class="anchored"><a class="anchor" href="#watermarks" aria-label="Link to this section">#</a>Watermarks</h3>
+
+<p>The engine's estimate of "we have probably now seen everything up to time T", which is what finally allows a window to close and emit a result. Anything arriving later is dropped or diverted, according to a policy you configure. This gets a full treatment in <a href="reliability.html">Reliability</a>, because it is really a correctness topic wearing a performance costume.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">Why streaming is harder, in one sentence</span>
+    <p>In batch, time is a column you filter on; in streaming, time is a property of the system itself — and the moment your correctness depends on the system's opinion of what time it is, everything gets harder.</p>
+  </div>
+</div>
+
+<h2 id="full-refresh-before-incremental" class="anchored"><a class="anchor" href="#full-refresh-before-incremental" aria-label="Link to this section">#</a>Full refresh before incremental<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="full-refresh-before-incremental"><span>Done</span></label></h2>
+
+<p>Every transformation faces the same choice: rebuild the whole table, or process only what is new?</p>
+
+<p><strong>Start with full refresh.</strong> It is simple, it is self-correcting, and it exercises every line of your logic on every run. Move to incremental when runtime or cost actually demands it, not in anticipation.</p>
+
+<p>The reason for that ordering is subtle and important: incremental logic is the code path that <em>is not</em> exercised on a normal run. Bugs there hide in the gap between "what a full rebuild would produce" and "what a series of incremental runs produced" — and that gap can grow silently for months. The patterns for doing it safely are in <a href="modeling.html">Modelling</a>.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">Try this</span>
+    <p>Take any transformation you have written and ask: if I ran a full rebuild right now, would the result match what is in the table? If you cannot answer confidently, you have found the most valuable test you could add.</p>
+  </div>
+</div>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<ul>
+  <li>Explain why ELT replaced ETL, in terms of what became cheap — and name a case where ETL is still correct</li>
+  <li>Define shuffle, and say why joins and <code>GROUP BY</code> cause one</li>
+  <li>Diagnose skew from a description of task durations, and explain why adding nodes will not fix it</li>
+  <li>Say what a transformation tool like dbt provides beyond the ability to run SQL</li>
+  <li>Choose between tumbling, sliding and session windows for a given question</li>
+  <li>Explain why you should reach for full refresh before incremental, in terms of which code paths get exercised</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="ingestion.html"><span>Previous</span><b>Ingestion</b></a><a class="pn pn-next" href="orchestration.html"><span>Next</span><b>Orchestration</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#why-transformation-exists-at-all">Why transformation exists at all</a></li><li class="toc-l2"><a href="#etl-and-elt-where-the-t-goes">ETL and ELT: where the T goes</a></li><li class="toc-l2"><a href="#the-four-words-that-explain-distributed-performance">The four words that explain distributed performance</a></li><li class="toc-l2"><a href="#the-sql-transformation-layer">The SQL transformation layer</a></li><li class="toc-l2"><a href="#stream-processing-in-the-amount-you-need-now">Stream processing, in the amount you need now</a></li><li class="toc-l3"><a href="#windows">Windows</a></li><li class="toc-l3"><a href="#state">State</a></li><li class="toc-l3"><a href="#watermarks">Watermarks</a></li><li class="toc-l2"><a href="#full-refresh-before-incremental">Full refresh before incremental</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

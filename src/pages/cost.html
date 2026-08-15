@@ -1,0 +1,121 @@
+<!--meta
+{
+  "title": "Cost and governance",
+  "navTitle": "Cost & governance",
+  "description": "Where the money actually goes in a cloud data platform, and how to design for privacy, access and deletion from the start.",
+  "eyebrow": "The hard parts",
+  "lede": "Two topics that beginners treat as someone else's job, and that senior engineers treat as design inputs. Both are much cheaper to get right early than to retrofit."
+}
+-->
+
+<h2>Cost is a design constraint, not an afterthought</h2>
+
+<p>In a cloud data platform, cost is dominated by <strong>compute on data scanned</strong> — not by storage. Storage is genuinely cheap, at roughly $20–25 per TB per month. Reading that storage, repeatedly, all day, is where the bill comes from.</p>
+
+<p>That single fact reframes most optimisation work. You are not trying to make queries faster in the abstract; you are trying to make them <em>read less</em>. Every technique below is a version of that idea.</p>
+
+<div class="analogy">
+  <span class="analogy-label">Analogy</span>
+  <p>Renting a warehouse is cheap. Sending a truck to it is not. If you send a truck to fetch one box, you pay for the truck; if you send forty trucks a day because nothing is labelled and each one has to search the whole building, you pay forty times over — and the fix is labelling, not a bigger truck.</p>
+  <p>Partitioning is the labelling. Bigger compute is the bigger truck. Beginners reliably reach for the truck.</p>
+</div>
+
+<h2>Where the money actually goes</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Cause</th><th>Symptom</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Missing partition filters</td><td>Every query scans the full table</td><td>Partition properly; require a date filter on huge tables</td></tr>
+    <tr><td>Reprocessing all history each run</td><td>Nightly job cost grows linearly with age of the company</td><td>Incremental models</td></tr>
+    <tr><td>A dashboard auto-refreshing every 60 seconds</td><td>One dashboard outspends the entire pipeline</td><td>Cache, materialise the aggregate, refresh on a sane cadence</td></tr>
+    <tr><td><code>SELECT *</code> on a 300-column table</td><td>Reading 300 columns to use 4</td><td>Name the columns — columnar storage rewards this enormously</td></tr>
+    <tr><td>Idle always-on clusters</td><td>Steady spend overnight and at weekends</td><td>Auto-suspend, serverless, or right-size the warehouse</td></tr>
+    <tr><td>Streaming where batch would do</td><td>Always-on compute for data nobody reads until morning</td><td>Revisit the freshness requirement with the actual consumer</td></tr>
+    <tr><td>Small files</td><td>Query time dominated by opening files</td><td>Compaction — see <a href="storage.html">Storage</a></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">The dashboard that costs more than the pipeline</span>
+    <p>This one surprises people every time. A BI dashboard set to auto-refresh every minute, left open on ten screens across the office, issues 14,400 queries a day. If each scans 50 GB, that is 720 TB scanned daily to display numbers that change once an hour.</p>
+    <p>The pipeline that <em>produced</em> the data might scan 200 GB a day. The consumption side is often the larger bill, and it is the side nobody instruments. When investigating cost, look at queries by source before you look at your own jobs.</p>
+  </div>
+</div>
+
+<h2>The cost nobody puts on the invoice</h2>
+
+<p>Engineer time is usually the largest line item in a data platform, and it appears in no cloud console.</p>
+
+<p>An architecture that saves $2,000 a month in compute but needs a full-time person to keep running is not cheaper — it is roughly five times more expensive, and the difference is invisible in the tooling you would normally use to evaluate it.</p>
+
+<p>This is the real argument against premature complexity. A lakehouse with hand-rolled compaction, a streaming path nobody fully understands, and four tools where one would do — each of those has a monthly cost measured in attention. When you compare designs, put an engineer-hours row in the table.</p>
+
+<h2>Governance: design inputs, not paperwork</h2>
+
+<p>Privacy, access and deletion are usually presented as compliance obligations. Treat them instead as architectural constraints that are cheap on day one and expensive on day four hundred.</p>
+
+<h3>Know where the personal data is</h3>
+
+<p>Tag columns as they are created. You cannot protect what you have not inventoried, and reconstructing an inventory across 400 tables afterwards is a project rather than a task.</p>
+
+<h3>Minimise</h3>
+
+<p>The cheapest way to secure a field is to not have it. Do not ingest personal data you have no use for — and "we might want it later" is not a use.</p>
+
+<h3>Mask or tokenise early</h3>
+
+<p>Most analytics needs to <em>group by</em> a person, not <em>identify</em> them. If you hash or tokenise the identifier at ingestion, you can still count customers, measure retention and build cohorts — without holding the email address in a table twelve people can query.</p>
+
+<p>Where the real value <em>is</em> needed, use column-level masking and role-based access rather than a separate copy of the table, which immediately becomes a second thing to secure.</p>
+
+<h3>Access control</h3>
+
+<p>Grant to roles, not people, and on schemas rather than individual tables where you can. Per-person, per-table grants become unmaintainable within a year, and the failure mode is that nobody dares revoke anything.</p>
+
+<h3>Deletion and retention</h3>
+
+<figure class="diagram" data-diagram="retention">
+  <figcaption>Every table needs a defined end of life. The final phase is the one teams skip, which is why storage bills only ever grow.</figcaption>
+</figure>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">Immutable append-only architectures and the right to erasure</span>
+    <p>GDPR and similar regimes give individuals the right to have their data deleted. If your architecture is built on immutable files that are only ever appended to, honouring that request is genuinely difficult — the data is spread across thousands of files, in backups, and in every downstream table derived from them.</p>
+    <p>Design for it early. Keep personal data in a small, known set of places rather than copied through every layer. Choose a table format that supports row-level deletes. And keep a mapping that lets you find every row belonging to one person without scanning the entire lake.</p>
+    <p>This is the clearest example in the course of a requirement that is nearly free to design for and very expensive to retrofit.</p>
+  </div>
+</div>
+
+<h3>Audit</h3>
+
+<p>Log who queried what. You will eventually need it — either because of a compliance question, or because you need to know who is still using the table you want to delete.</p>
+
+<h2>Putting a number on a design</h2>
+
+<p>When you propose an architecture, estimate its cost to an order of magnitude. You do not need precision; you need to know whether you are proposing something that costs $200 a month or $20,000.</p>
+
+<p>A rough method that is good enough for a design discussion:</p>
+
+<ol>
+  <li><strong>Storage</strong> — total data volume × $25/TB/month. Usually a small number, and usually not the problem.</li>
+  <li><strong>Pipeline compute</strong> — data scanned per run × runs per day × your platform's rate.</li>
+  <li><strong>Consumption compute</strong> — estimated queries per day × average scan. This is often larger than the pipeline; do not skip it.</li>
+  <li><strong>Engineer time</strong> — how many hours a month does this design demand from a person? Multiply by a loaded hourly rate.</li>
+</ol>
+
+<p>Then name the biggest driver and say what you would do if the bill doubled. Being able to answer that question is a strong signal in a design review, and it is a question people are rarely prepared for.</p>
+
+<h2>Checklist</h2>
+
+<ul>
+  <li>Explain why compute, not storage, dominates cloud data costs</li>
+  <li>Name four common cost blowups and the fix for each</li>
+  <li>Explain why the consumption side is often more expensive than the pipeline, and how you would check</li>
+  <li>Argue against a technically cheaper architecture on engineer-time grounds</li>
+  <li>Say why an immutable append-only design makes the right to erasure hard, and what you would do differently</li>
+  <li>Produce an order-of-magnitude cost estimate for a design, and name its biggest driver</li>
+</ul>

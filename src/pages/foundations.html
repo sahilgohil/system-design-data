@@ -1,0 +1,181 @@
+<!--meta
+{
+  "title": "Foundations",
+  "navTitle": "Foundations",
+  "description": "The reference pipeline, the OLTP/OLAP split, and the four constraints every data system design trades between.",
+  "eyebrow": "Start here",
+  "lede": "This page assumes nothing and builds the model the rest of the course hangs off. If you only read one lesson, read this one — every later page refers back to it."
+}
+-->
+
+<h2>The problem this whole field exists to solve</h2>
+
+<p>A company has an application. The application has a database, and that database is very good at one thing: answering questions about one customer, one order, one session, right now.</p>
+
+<p>Then someone asks: <em>what did revenue do by region over the last three years, split by product category?</em></p>
+
+<p>You can write that query against the application's database. It will work — for a while. Then the company grows, the query starts taking four minutes, and one Tuesday it locks a table during a sale and the checkout page goes down. Now you have learned the founding lesson of data engineering the expensive way: <strong>the database that runs your business is the wrong place to analyse your business.</strong></p>
+
+<p>So you copy the data somewhere else. And immediately you have a dozen new problems. How often do you copy it? What happens when the copy fails halfway? What if a row was deleted in the source? What if someone renames a column? Who notices when the numbers go wrong?</p>
+
+<p>Answering those questions well, at scale, for years, is data system design.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">A definition worth memorising</span>
+    <p>Data system design is deciding how data moves from where it is <em>produced</em> to where it is <em>useful</em> — reliably, correctly, affordably, and in a way the next engineer can maintain.</p>
+  </div>
+</div>
+
+<h2>How this differs from the system design you may have read about</h2>
+
+<p>If you have read about system design before, it was probably <strong>backend</strong> system design: design Twitter, design a URL shortener. That discipline optimises for many users doing tiny operations at once. Data system design optimises for few consumers doing enormous operations, usually not in real time. The questions are genuinely different.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Backend system design asks</th><th>Data system design asks</th></tr></thead>
+  <tbody>
+    <tr><td>How do I serve 50,000 requests per second?</td><td>How do I process 500 GB a day without going bankrupt?</td></tr>
+    <tr><td>How do I keep p99 latency under 100 ms?</td><td>How fresh must this table be — 5 minutes or 6 hours?</td></tr>
+    <tr><td>How do I avoid downtime?</td><td>How do I recover when yesterday's data was <em>wrong</em>?</td></tr>
+    <tr><td>How do I shard this database?</td><td>How do I lay files out so a query scans 1% of them instead of 100%?</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Notice the third row especially. In backend engineering, the failure you fear is the system being <em>down</em> — loud, obvious, everyone knows within a minute. In data engineering, the failure you fear is the system being <em>wrong</em> — silent, and capable of running for weeks while people make decisions on it.</p>
+
+<h2>The reference pipeline</h2>
+
+<p>Nearly every data system — a startup's first pipeline, a bank's platform, the thing your company already has — is a variation of the same five-stage shape. Learn it now, and for the rest of your career you can place any new tool or architecture by asking: <em>which box does this fill?</em></p>
+
+<figure class="diagram" data-diagram="pipeline">
+  <figcaption>Data flows one way through five stages. Almost every tool you will ever hear about lives in exactly one of these boxes.</figcaption>
+</figure>
+
+<p>Wrapped around all five stages are three concerns that apply everywhere and belong to no single box:</p>
+
+<ul>
+  <li><strong>Orchestration</strong> — what runs, in what order, when, and what happens when it fails.</li>
+  <li><strong>Observability</strong> — is it fresh, is it correct, what broke, what does it cost.</li>
+  <li><strong>Governance</strong> — who can see what, where the personal data is, how long it is kept.</li>
+</ul>
+
+<p>These three are the difference between a demo and a production system, and they are where most of the later pages in this course live.</p>
+
+<h2>OLTP and OLAP: the split that explains everything</h2>
+
+<p>This is the single most important idea in the course. Two kinds of database exist, built on opposite assumptions, and confusing them is the root cause of an enormous share of beginner mistakes.</p>
+
+<figure class="diagram" data-diagram="oltp-olap">
+  <figcaption>The same data, stored two different ways, because the two systems are asked completely different questions.</figcaption>
+</figure>
+
+<p><strong>OLTP</strong> (Online Transaction Processing) is the database behind your application. <strong>OLAP</strong> (Online Analytical Processing) is the database behind your analytics.</p>
+
+<h3>Why the storage layout is the whole story</h3>
+
+<p>Picture a table with 200 columns and one billion rows, and think about how the bytes sit on disk.</p>
+
+<p><strong>Row storage</strong> keeps each record's fields next to each other: all of row 1, then all of row 2. Fetching one complete record is a single seek — perfect for "show me order #4521". But summing one column means reading all 200 columns of all one billion rows, because the values you want are scattered thinly across the whole file.</p>
+
+<p><strong>Column storage</strong> keeps each column's values next to each other: every <code>country</code>, then every <code>amount</code>. Summing one column now reads one two-hundredth of the data. And because a column holds values of a single type — often with few distinct values, like <code>country</code> — it compresses five to twenty times better than mixed row data.</p>
+
+<div class="analogy">
+  <span class="analogy-label">Analogy</span>
+  <p>A row store is a filing cabinet of paper forms: one folder per customer, every field about that customer inside it. Pulling one customer's file is instant. Answering "what is the average age of all customers" means opening every folder in the building.</p>
+  <p>A column store is that same data typed into one long list of every name and a separate long list of every age. The average age is one list, read once. But reconstructing a single customer's full record now means visiting two hundred different lists.</p>
+  <p><strong>Where it breaks:</strong> a real column store does not visit those lists one at a time — it reads them in parallel, and a good one skips entire files using stored statistics. The analogy gets the trade-off right and the mechanics wrong.</p>
+</div>
+
+<p>This is why a query that takes 40 minutes on Postgres takes 4 seconds on an analytics warehouse. It is not that the warehouse has faster disks. It is that it reads a hundredth of the bytes.</p>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">The confusion to head off</span>
+    <p>"OLAP" sounds like it should mean <em>slow, offline, yesterday's data</em>, and "OLTP" sounds like it should mean <em>live and modern</em>. Neither is true — both have "online" in the name and both serve interactive queries.</p>
+    <p>The one-line test: <strong>OLTP is optimised for how fast one small request finishes; OLAP is optimised for how much data one big request can chew through.</strong> Freshness is a completely separate axis, and you choose it independently.</p>
+  </div>
+</div>
+
+<h2>Batch and streaming are a spectrum, not a switch</h2>
+
+<p>The other axis you choose on is freshness: how old the data is when someone uses it. Beginners tend to treat this as a binary — batch or real-time — but it is a dial, and every notch to the right costs more money and much more engineering time.</p>
+
+<figure class="diagram" data-diagram="freshness">
+  <figcaption>Freshness is a dial with a price attached. Streaming is roughly five to ten times the engineering cost of batch, and is needed far less often than people claim.</figcaption>
+</figure>
+
+<p>The difference is not only cost. Batch work is <em>bounded</em>: you process yesterday's data, yesterday is over, so if the job fails you run it again and you are done. Streaming work is <em>unbounded</em>: there is no natural end, the job holds state between events, time and correctness become entangled, and "just run it again" stops being a sentence that means anything simple.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">The question to ask instead</span>
+    <p>When someone asks for real-time, do not ask how fresh they want the data. Ask: <em>what decision do you make with this, and how quickly do you make it?</em></p>
+    <p>A monthly board report needs daily data. A marketing dashboard needs hourly. Blocking a fraudulent transaction needs milliseconds — and should not go through your warehouse at all. In practice, "the executive wants real-time" usually means "yesterday's number feels stale", which hourly solves at a fraction of the cost.</p>
+  </div>
+</div>
+
+<p><strong>The default is batch.</strong> Make streaming justify itself with a named decision that genuinely cannot wait.</p>
+
+<h2>The four constraints you are always trading between</h2>
+
+<p>No design maximises all four of these. Every choice in the rest of this course is a trade among them, and being able to <em>name which one you traded away</em> is most of what separates a considered design from a lucky one.</p>
+
+<div class="cards">
+  <div class="card">
+    <span class="chip green">1</span>
+    <h3 data-no-toc>Correctness</h3>
+    <p>The numbers are right, and stay right when jobs fail, data arrives late, or someone reruns last month by accident.</p>
+  </div>
+  <div class="card">
+    <span class="chip">2</span>
+    <h3 data-no-toc>Freshness</h3>
+    <p>How old the data is when it is used. The most expensive constraint to tighten, and the one most often over-specified.</p>
+  </div>
+  <div class="card">
+    <span class="chip amber">3</span>
+    <h3 data-no-toc>Cost</h3>
+    <p>Compute, storage, and engineer hours. The third is usually the largest and never appears on the cloud bill.</p>
+  </div>
+  <div class="card">
+    <span class="chip">4</span>
+    <h3 data-no-toc>Maintainability</h3>
+    <p>Can someone else understand, change and debug this in a year? Including you, having forgotten all of it.</p>
+  </div>
+</div>
+
+<h2>What a good data system looks like</h2>
+
+<p>Five properties recur throughout this course. You will not fully understand them yet — each has its own lesson later. Read them now so the words are familiar when they arrive.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Property</th><th>Means</th><th>Covered in</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Idempotent</strong></td><td>Running the same job twice gives the same result, not double the rows.</td><td><a href="reliability.html">Reliability</a></td></tr>
+    <tr><td><strong>Incremental</strong></td><td>It processes the new data, not all the data, every time.</td><td><a href="modeling.html">Modelling</a></td></tr>
+    <tr><td><strong>Reproducible</strong></td><td>Any output can be rebuilt from raw inputs, because raw was kept.</td><td><a href="storage.html">Storage</a></td></tr>
+    <tr><td><strong>Observable</strong></td><td>You learn it is broken before your users tell you.</td><td><a href="quality.html">Quality</a></td></tr>
+    <tr><td><strong>Loosely coupled</strong></td><td>A change upstream does not silently corrupt everything downstream.</td><td><a href="quality.html">Quality</a></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>A note on tools</h2>
+
+<p>This course names real tools — Snowflake, Kafka, Airflow, Spark, dbt — so you recognise them in job descriptions and conversations. But tools turn over every few years and the ideas do not. Column storage was a good idea in 2005 and will be a good idea in 2035; the product implementing it will have changed names twice by then.</p>
+
+<p>When you meet a tool you have never heard of, ask two questions: <em>which box of the reference pipeline does it fill, and which of the four constraints is it trading?</em> That will get you further than reading its marketing page.</p>
+
+<h2>Checklist</h2>
+
+<p>Before moving on, you should be able to:</p>
+
+<ul>
+  <li>Draw the five-stage reference pipeline from memory, and name the three cross-cutting concerns</li>
+  <li>Explain <em>why</em> column storage makes an analytical query faster, in terms of bytes read — not just assert that it does</li>
+  <li>Give the one-line test separating OLTP from OLAP without using the words "online" or "analytical"</li>
+  <li>Explain to a colleague why their request for real-time data might be better served by hourly batch, and say what question you would ask them first</li>
+  <li>Name the four constraints, and identify which one a design has sacrificed when you are shown one</li>
+</ul>

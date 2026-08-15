@@ -1,0 +1,33 @@
+{
+  "title": "System Design for Data Engineering",
+  "shortTitle": "Data Systems",
+  "tagline": "A beginner's course in how data moves from where it is produced to where it is useful — reliably, correctly and affordably.",
+  "updated": "2026-08-15",
+  "footerNote": "An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.",
+  "sections": [
+    {
+      "label": "Start here",
+      "pages": ["index", "foundations"]
+    },
+    {
+      "label": "The building blocks",
+      "pages": ["storage", "ingestion", "processing", "orchestration"]
+    },
+    {
+      "label": "The hard parts",
+      "pages": ["reliability", "quality", "modeling", "cost"]
+    },
+    {
+      "label": "Designing a system",
+      "pages": ["framework", "examples"]
+    },
+    {
+      "label": "Keep going",
+      "pages": ["path", "reference"]
+    },
+    {
+      "label": "Practice",
+      "pages": ["quiz"]
+    }
+  ]
+}

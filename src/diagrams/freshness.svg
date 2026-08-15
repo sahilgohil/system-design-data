@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 188" role="img" class="dg">
+  <title>The freshness spectrum</title><desc>Daily batch, hourly batch, micro-batch, streaming and live lookups, increasing in cost</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">The freshness spectrum</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-accent" x="16" y="46" width="220" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="126" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Daily batch</text>
+  <text class="dg-sub" x="126" y="110.3" font-size="12.5" text-anchor="middle">cheapest · start here</text>
+  <rect class="dg-box" x="240" y="46" width="164" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="322" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Hourly</text>
+  <text class="dg-sub" x="322" y="110.3" font-size="12.5" text-anchor="middle">solves most of 'we want</text>
+  <text class="dg-sub" x="322" y="128.4" font-size="12.5" text-anchor="middle">real-time'</text>
+  <rect class="dg-box" x="408" y="46" width="108" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="462" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Micro-batch</text>
+  <text class="dg-sub" x="462" y="110.3" font-size="12.5" text-anchor="middle">every 5 min</text>
+  <rect class="dg-box dg-box-muted" x="520" y="46" width="108" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="574" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Streaming</text>
+  <text class="dg-sub" x="574" y="110.3" font-size="12.5" text-anchor="middle">seconds ·</text>
+  <text class="dg-sub" x="574" y="128.4" font-size="12.5" text-anchor="middle">always-on</text>
+  <rect class="dg-box dg-box-muted" x="632" y="46" width="112" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="686" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Live</text>
+  <text class="dg-sub" x="686" y="110.3" font-size="12.5" text-anchor="middle">milliseconds</text>
+  <text class="dg-sub" x="16" y="30.3" font-size="12.5" text-anchor="start">Fresher data, higher cost and complexity →</text>
+  </g>
+</svg>

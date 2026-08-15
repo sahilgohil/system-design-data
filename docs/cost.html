@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en" data-page="cost">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cost and governance · System Design for Data Engineering</title>
+<meta name="description" content="Where the money actually goes in a cloud data platform, and how to design for privacy, access and deletion from the start.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html" class="active" aria-current="page">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">The hard parts</p>
+      <h1>Cost and governance</h1>
+      <p class="lede">Two topics that beginners treat as someone else's job, and that senior engineers treat as design inputs. Both are much cheaper to get right early than to retrofit.</p>
+      <h2 id="cost-is-a-design-constraint-not-an-afterthought" class="anchored"><a class="anchor" href="#cost-is-a-design-constraint-not-an-afterthought" aria-label="Link to this section">#</a>Cost is a design constraint, not an afterthought<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="cost-is-a-design-constraint-not-an-afterthought"><span>Done</span></label></h2>
+
+<p>In a cloud data platform, cost is dominated by <strong>compute on data scanned</strong> — not by storage. Storage is genuinely cheap, at roughly $20–25 per TB per month. Reading that storage, repeatedly, all day, is where the bill comes from.</p>
+
+<p>That single fact reframes most optimisation work. You are not trying to make queries faster in the abstract; you are trying to make them <em>read less</em>. Every technique below is a version of that idea.</p>
+
+<div class="analogy">
+  <span class="analogy-label">Analogy</span>
+  <p>Renting a warehouse is cheap. Sending a truck to it is not. If you send a truck to fetch one box, you pay for the truck; if you send forty trucks a day because nothing is labelled and each one has to search the whole building, you pay forty times over — and the fix is labelling, not a bigger truck.</p>
+  <p>Partitioning is the labelling. Bigger compute is the bigger truck. Beginners reliably reach for the truck.</p>
+</div>
+
+<h2 id="where-the-money-actually-goes" class="anchored"><a class="anchor" href="#where-the-money-actually-goes" aria-label="Link to this section">#</a>Where the money actually goes<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="where-the-money-actually-goes"><span>Done</span></label></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Cause</th><th>Symptom</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Missing partition filters</td><td>Every query scans the full table</td><td>Partition properly; require a date filter on huge tables</td></tr>
+    <tr><td>Reprocessing all history each run</td><td>Nightly job cost grows linearly with age of the company</td><td>Incremental models</td></tr>
+    <tr><td>A dashboard auto-refreshing every 60 seconds</td><td>One dashboard outspends the entire pipeline</td><td>Cache, materialise the aggregate, refresh on a sane cadence</td></tr>
+    <tr><td><code>SELECT *</code> on a 300-column table</td><td>Reading 300 columns to use 4</td><td>Name the columns — columnar storage rewards this enormously</td></tr>
+    <tr><td>Idle always-on clusters</td><td>Steady spend overnight and at weekends</td><td>Auto-suspend, serverless, or right-size the warehouse</td></tr>
+    <tr><td>Streaming where batch would do</td><td>Always-on compute for data nobody reads until morning</td><td>Revisit the freshness requirement with the actual consumer</td></tr>
+    <tr><td>Small files</td><td>Query time dominated by opening files</td><td>Compaction — see <a href="storage.html">Storage</a></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">The dashboard that costs more than the pipeline</span>
+    <p>This one surprises people every time. A BI dashboard set to auto-refresh every minute, left open on ten screens across the office, issues 14,400 queries a day. If each scans 50 GB, that is 720 TB scanned daily to display numbers that change once an hour.</p>
+    <p>The pipeline that <em>produced</em> the data might scan 200 GB a day. The consumption side is often the larger bill, and it is the side nobody instruments. When investigating cost, look at queries by source before you look at your own jobs.</p>
+  </div>
+</div>
+
+<h2 id="the-cost-nobody-puts-on-the-invoice" class="anchored"><a class="anchor" href="#the-cost-nobody-puts-on-the-invoice" aria-label="Link to this section">#</a>The cost nobody puts on the invoice<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-cost-nobody-puts-on-the-invoice"><span>Done</span></label></h2>
+
+<p>Engineer time is usually the largest line item in a data platform, and it appears in no cloud console.</p>
+
+<p>An architecture that saves $2,000 a month in compute but needs a full-time person to keep running is not cheaper — it is roughly five times more expensive, and the difference is invisible in the tooling you would normally use to evaluate it.</p>
+
+<p>This is the real argument against premature complexity. A lakehouse with hand-rolled compaction, a streaming path nobody fully understands, and four tools where one would do — each of those has a monthly cost measured in attention. When you compare designs, put an engineer-hours row in the table.</p>
+
+<h2 id="governance-design-inputs-not-paperwork" class="anchored"><a class="anchor" href="#governance-design-inputs-not-paperwork" aria-label="Link to this section">#</a>Governance: design inputs, not paperwork<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="governance-design-inputs-not-paperwork"><span>Done</span></label></h2>
+
+<p>Privacy, access and deletion are usually presented as compliance obligations. Treat them instead as architectural constraints that are cheap on day one and expensive on day four hundred.</p>
+
+<h3 id="know-where-the-personal-data-is" class="anchored"><a class="anchor" href="#know-where-the-personal-data-is" aria-label="Link to this section">#</a>Know where the personal data is</h3>
+
+<p>Tag columns as they are created. You cannot protect what you have not inventoried, and reconstructing an inventory across 400 tables afterwards is a project rather than a task.</p>
+
+<h3 id="minimise" class="anchored"><a class="anchor" href="#minimise" aria-label="Link to this section">#</a>Minimise</h3>
+
+<p>The cheapest way to secure a field is to not have it. Do not ingest personal data you have no use for — and "we might want it later" is not a use.</p>
+
+<h3 id="mask-or-tokenise-early" class="anchored"><a class="anchor" href="#mask-or-tokenise-early" aria-label="Link to this section">#</a>Mask or tokenise early</h3>
+
+<p>Most analytics needs to <em>group by</em> a person, not <em>identify</em> them. If you hash or tokenise the identifier at ingestion, you can still count customers, measure retention and build cohorts — without holding the email address in a table twelve people can query.</p>
+
+<p>Where the real value <em>is</em> needed, use column-level masking and role-based access rather than a separate copy of the table, which immediately becomes a second thing to secure.</p>
+
+<h3 id="access-control" class="anchored"><a class="anchor" href="#access-control" aria-label="Link to this section">#</a>Access control</h3>
+
+<p>Grant to roles, not people, and on schemas rather than individual tables where you can. Per-person, per-table grants become unmaintainable within a year, and the failure mode is that nobody dares revoke anything.</p>
+
+<h3 id="deletion-and-retention" class="anchored"><a class="anchor" href="#deletion-and-retention" aria-label="Link to this section">#</a>Deletion and retention</h3>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 188" role="img" class="dg">
+  <title>Every table needs an end of life</title><desc>Data moves from hot query storage through archive to deletion, and the deletion step is the one teams forget</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Every table needs an end of life</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-accent" x="16" y="46" width="238.66666666666666" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="135.33333333333331" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Hot</text>
+  <text class="dg-sub" x="135.33333333333331" y="110.3" font-size="12.5" text-anchor="middle">0-13 months · queried constantly</text>
+  <rect class="dg-box" x="258.66666666666663" y="46" width="178" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="347.66666666666663" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Warm</text>
+  <text class="dg-sub" x="347.66666666666663" y="110.3" font-size="12.5" text-anchor="middle">1-3 years · occasional</text>
+  <text class="dg-sub" x="347.66666666666663" y="128.4" font-size="12.5" text-anchor="middle">year-on-year queries</text>
+  <rect class="dg-box dg-box-muted" x="440.66666666666663" y="46" width="178" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="529.6666666666666" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Archive</text>
+  <text class="dg-sub" x="529.6666666666666" y="110.3" font-size="12.5" text-anchor="middle">cold storage · cents per</text>
+  <text class="dg-sub" x="529.6666666666666" y="128.4" font-size="12.5" text-anchor="middle">TB</text>
+  <rect class="dg-box dg-box-muted" x="622.6666666666666" y="46" width="121.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="681.3333333333333" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Deleted</text>
+  <text class="dg-sub" x="681.3333333333333" y="110.3" font-size="12.5" text-anchor="middle">the step</text>
+  <text class="dg-sub" x="681.3333333333333" y="128.4" font-size="12.5" text-anchor="middle">everyone forgets</text>
+  <text class="dg-sub" x="16" y="30.3" font-size="12.5" text-anchor="start">Age of the data →</text>
+  </g>
+</svg>
+  <figcaption>Every table needs a defined end of life. The final phase is the one teams skip, which is why storage bills only ever grow.</figcaption>
+</figure>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">Immutable append-only architectures and the right to erasure</span>
+    <p>GDPR and similar regimes give individuals the right to have their data deleted. If your architecture is built on immutable files that are only ever appended to, honouring that request is genuinely difficult — the data is spread across thousands of files, in backups, and in every downstream table derived from them.</p>
+    <p>Design for it early. Keep personal data in a small, known set of places rather than copied through every layer. Choose a table format that supports row-level deletes. And keep a mapping that lets you find every row belonging to one person without scanning the entire lake.</p>
+    <p>This is the clearest example in the course of a requirement that is nearly free to design for and very expensive to retrofit.</p>
+  </div>
+</div>
+
+<h3 id="audit" class="anchored"><a class="anchor" href="#audit" aria-label="Link to this section">#</a>Audit</h3>
+
+<p>Log who queried what. You will eventually need it — either because of a compliance question, or because you need to know who is still using the table you want to delete.</p>
+
+<h2 id="putting-a-number-on-a-design" class="anchored"><a class="anchor" href="#putting-a-number-on-a-design" aria-label="Link to this section">#</a>Putting a number on a design<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="putting-a-number-on-a-design"><span>Done</span></label></h2>
+
+<p>When you propose an architecture, estimate its cost to an order of magnitude. You do not need precision; you need to know whether you are proposing something that costs $200 a month or $20,000.</p>
+
+<p>A rough method that is good enough for a design discussion:</p>
+
+<ol>
+  <li><strong>Storage</strong> — total data volume × $25/TB/month. Usually a small number, and usually not the problem.</li>
+  <li><strong>Pipeline compute</strong> — data scanned per run × runs per day × your platform's rate.</li>
+  <li><strong>Consumption compute</strong> — estimated queries per day × average scan. This is often larger than the pipeline; do not skip it.</li>
+  <li><strong>Engineer time</strong> — how many hours a month does this design demand from a person? Multiply by a loaded hourly rate.</li>
+</ol>
+
+<p>Then name the biggest driver and say what you would do if the bill doubled. Being able to answer that question is a strong signal in a design review, and it is a question people are rarely prepared for.</p>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<ul>
+  <li>Explain why compute, not storage, dominates cloud data costs</li>
+  <li>Name four common cost blowups and the fix for each</li>
+  <li>Explain why the consumption side is often more expensive than the pipeline, and how you would check</li>
+  <li>Argue against a technically cheaper architecture on engineer-time grounds</li>
+  <li>Say why an immutable append-only design makes the right to erasure hard, and what you would do differently</li>
+  <li>Produce an order-of-magnitude cost estimate for a design, and name its biggest driver</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="modeling.html"><span>Previous</span><b>Modelling</b></a><a class="pn pn-next" href="framework.html"><span>Next</span><b>The framework</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#cost-is-a-design-constraint-not-an-afterthought">Cost is a design constraint, not an afterthought</a></li><li class="toc-l2"><a href="#where-the-money-actually-goes">Where the money actually goes</a></li><li class="toc-l2"><a href="#the-cost-nobody-puts-on-the-invoice">The cost nobody puts on the invoice</a></li><li class="toc-l2"><a href="#governance-design-inputs-not-paperwork">Governance: design inputs, not paperwork</a></li><li class="toc-l3"><a href="#know-where-the-personal-data-is">Know where the personal data is</a></li><li class="toc-l3"><a href="#minimise">Minimise</a></li><li class="toc-l3"><a href="#mask-or-tokenise-early">Mask or tokenise early</a></li><li class="toc-l3"><a href="#access-control">Access control</a></li><li class="toc-l3"><a href="#deletion-and-retention">Deletion and retention</a></li><li class="toc-l3"><a href="#audit">Audit</a></li><li class="toc-l2"><a href="#putting-a-number-on-a-design">Putting a number on a design</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

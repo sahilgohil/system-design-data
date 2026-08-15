@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 615" role="img" class="dg">
+  <title>A daily DAG, task by task</title><desc>Wait for the source, extract, load raw, build staging, build marts, test, then publish</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">A daily DAG, task by task</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box" x="16" y="16" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="40.3" font-size="15" text-anchor="start" font-weight="500">Wait</text>
+  <text class="dg-sub" x="34" y="62.0" font-size="12.5" text-anchor="start">Sensor: has yesterday's source data landed?</text>
+  <line class="dg-arrow" x1="380" y1="87.875" x2="380" y2="104.875" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="111.875" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="136.2" font-size="15" text-anchor="start" font-weight="500">Extract and load</text>
+  <text class="dg-sub" x="34" y="157.9" font-size="12.5" text-anchor="start">Land raw, unchanged, at dt=2026-03-01</text>
+  <line class="dg-arrow" x1="380" y1="183.75" x2="380" y2="200.75" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="207.75" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="232.1" font-size="15" text-anchor="start" font-weight="500">Build staging</text>
+  <text class="dg-sub" x="34" y="253.8" font-size="12.5" text-anchor="start">Type, deduplicate, standardise</text>
+  <line class="dg-arrow" x1="380" y1="279.625" x2="380" y2="296.625" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="303.625" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="327.9" font-size="15" text-anchor="start" font-weight="500">Build marts</text>
+  <text class="dg-sub" x="34" y="349.6" font-size="12.5" text-anchor="start">Join and aggregate into business tables</text>
+  <line class="dg-arrow" x1="380" y1="375.5" x2="380" y2="392.5" marker-end="url(#dg-a)"/>
+  <rect class="dg-box dg-box-accent" x="16" y="399.5" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="423.8" font-size="15" text-anchor="start" font-weight="500">Test</text>
+  <text class="dg-sub" x="34" y="445.5" font-size="12.5" text-anchor="start">Freshness, volume, uniqueness, business rules</text>
+  <line class="dg-arrow" x1="380" y1="471.375" x2="380" y2="488.375" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="495.375" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="519.7" font-size="15" text-anchor="start" font-weight="500">Publish</text>
+  <text class="dg-sub" x="34" y="541.4" font-size="12.5" text-anchor="start">Swap in the new data and notify consumers</text>
+  </g>
+</svg>

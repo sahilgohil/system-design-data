@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en" data-page="quality">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quality, contracts and observability · System Design for Data Engineering</title>
+<meta name="description" content="Schema evolution, data contracts, the six test categories, and how to find out you are broken before your users do.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html" class="active" aria-current="page">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">The hard parts</p>
+      <h1>Quality, contracts and observability</h1>
+      <p class="lede">Broken pipelines page you. Wrong data does not — which is exactly what makes it the more dangerous failure, and the one worth building defences against.</p>
+      <h2 id="the-failure-that-does-not-announce-itself" class="anchored"><a class="anchor" href="#the-failure-that-does-not-announce-itself" aria-label="Link to this section">#</a>The failure that does not announce itself<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-failure-that-does-not-announce-itself"><span>Done</span></label></h2>
+
+<p>Imagine a pipeline that has run successfully every morning for five weeks. Green ticks the whole way down. It has also, for those five weeks, been undercounting revenue by 4% because an upstream team added a new order status your <code>CASE</code> statement does not handle.</p>
+
+<p>Nobody knows. Decisions have been made on those numbers. When it is finally discovered, the cost is not the bug — it is the five weeks, and the fact that for the next year people will ask "are we sure this number is right?" before every meeting.</p>
+
+<p>That is the failure this lesson defends against. It is a different problem from uptime, and it needs different tools.</p>
+
+<h2 id="schema-changes-which-ones-are-safe" class="anchored"><a class="anchor" href="#schema-changes-which-ones-are-safe" aria-label="Link to this section">#</a>Schema changes: which ones are safe<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="schema-changes-which-ones-are-safe"><span>Done</span></label></h2>
+
+<p>Schemas change. The question is whether a given change is compatible with readers that already exist.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Change</th><th>Safe?</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Add a nullable column</td><td>Safe</td><td>Existing readers ignore it</td></tr>
+    <tr><td>Add a required column</td><td>Breaking</td><td>Old rows have no value for it</td></tr>
+    <tr><td>Drop a column</td><td>Breaking</td><td>Downstream queries referencing it fail</td></tr>
+    <tr><td>Rename a column</td><td>Breaking</td><td>It is a drop and an add wearing a disguise</td></tr>
+    <tr><td>Widen a type (int → bigint)</td><td>Usually safe</td><td>Every old value still fits</td></tr>
+    <tr><td>Narrow a type (bigint → int)</td><td>Breaking</td><td>Silent overflow or truncation</td></tr>
+    <tr><td><strong>Change the meaning, not the type</strong></td><td><strong>Worst of all</strong></td><td><code>amount</code> switches from dollars to cents. Nothing errors. Every number is wrong by 100×</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">Why the last row is the worst</span>
+    <p>Every other change in that table produces an error somewhere, and an error is a gift — it tells you immediately, in a log, with a line number.</p>
+    <p>A semantic change produces no error at all. The pipeline runs, the types match, the tests pass, and the numbers are wrong. This is why schema validation alone is insufficient and why the distribution tests below matter: they are the only mechanism that catches a value which is well-formed and meaningless.</p>
+  </div>
+</div>
+
+<h3 id="defences-from-cheap-to-serious" class="anchored"><a class="anchor" href="#defences-from-cheap-to-serious" aria-label="Link to this section">#</a>Defences, from cheap to serious</h3>
+
+<ul>
+  <li><strong>Never <code>SELECT *</code> into a persisted model.</strong> Pin the columns you depend on, so a new upstream column cannot surprise you and a dropped one fails loudly at build time.</li>
+  <li><strong>Land raw permissively, enforce at the first transformation.</strong> If raw is JSON, an unexpected field cannot break ingestion. Apply the schema one step later, where failing is safe.</li>
+  <li><strong>Use a schema registry</strong> (common with Avro on Kafka) to reject incompatible producer changes at publish time — before the bad data exists.</li>
+  <li><strong>Write a data contract.</strong> See below.</li>
+</ul>
+
+<h2 id="data-contracts" class="anchored"><a class="anchor" href="#data-contracts" aria-label="Link to this section">#</a>Data contracts<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="data-contracts"><span>Done</span></label></h2>
+
+<p>A data contract is an agreement between the team producing data and the teams consuming it, covering schema, semantics, freshness, and how changes are made.</p>
+
+<p>It sounds bureaucratic. In practice the lightweight version is a schema file living in the <em>producer's</em> repository plus a CI check that fails their build if they break it — and that single arrangement prevents most cross-team data incidents, because it moves the failure from your 3 a.m. pager to their pull request.</p>
+
+<div class="analogy">
+  <span class="analogy-label">Analogy</span>
+  <p>An API has a version, documentation, a deprecation policy, and a test suite that fails when someone breaks it. Nobody would ship a public API by letting any developer rename a field whenever they liked.</p>
+  <p>A data contract is that same discipline applied to a table or a topic. The reason data usually lacks it is historical, not principled: analytics started as people reading each other's databases, and the habit stuck.</p>
+  <p><strong>Where it breaks:</strong> an API has one obvious owner and a visible caller list. A table often has neither, which is why contracts need lineage to be enforceable — you must be able to see who would break.</p>
+</div>
+
+<h2 id="the-six-test-categories" class="anchored"><a class="anchor" href="#the-six-test-categories" aria-label="Link to this section">#</a>The six test categories<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-six-test-categories"><span>Done</span></label></h2>
+
+<p>Treat these as a checklist to apply to every table that matters. Most real data incidents are caught by one of these six, and teams that write tests ad hoc reliably miss two or three of them.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>#</th><th>Test</th><th>Asks</th><th>Catches</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><strong>Freshness</strong></td><td>Is <code>max(updated_at)</code> within the SLA?</td><td>A source that silently stopped delivering</td></tr>
+    <tr><td>2</td><td><strong>Volume</strong></td><td>Is today's row count in the expected range?</td><td>Partial loads, double loads, a filter that went wrong</td></tr>
+    <tr><td>3</td><td><strong>Uniqueness</strong></td><td>Is the primary key actually unique?</td><td>Broken joins, duplicate writes, fan-out</td></tr>
+    <tr><td>4</td><td><strong>Not-null</strong></td><td>Are required fields populated?</td><td>Upstream schema drift, failed lookups</td></tr>
+    <tr><td>5</td><td><strong>Referential</strong></td><td>Do all foreign keys resolve?</td><td>Late-arriving dimensions, orphaned facts</td></tr>
+    <tr><td>6</td><td><strong>Distribution</strong></td><td>Is revenue ≥ 0? Is <code>status='unknown'</code> under 1%?</td><td>Semantic changes — the ones nothing else catches</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">Uniqueness deserves special attention</span>
+    <p>A duplicate in a dimension table does not produce an error. It produces a join that returns two rows where it should return one — so every measure joined through it silently doubles.</p>
+    <p>This is the most common cause of "the dashboard says we made twice as much as we did", and a single uniqueness test on the dimension's key would have caught it at build time. If you only ever write one test per table, write this one.</p>
+  </div>
+</div>
+
+<h2 id="where-tests-belong-and-what-failure-should-do" class="anchored"><a class="anchor" href="#where-tests-belong-and-what-failure-should-do" aria-label="Link to this section">#</a>Where tests belong, and what failure should do<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="where-tests-belong-and-what-failure-should-do"><span>Done</span></label></h2>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 615" role="img" class="dg">
+  <title>Where tests belong</title><desc>Tests at ingestion catch source problems, tests at each transformation boundary catch your own bugs</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Where tests belong</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box" x="16" y="16" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="40.3" font-size="15" text-anchor="start" font-weight="500">Source</text>
+  <text class="dg-sub" x="34" y="62.0" font-size="12.5" text-anchor="start">Someone else's system, changing without telling you</text>
+  <line class="dg-arrow" x1="380" y1="87.875" x2="380" y2="104.875" marker-end="url(#dg-a)"/>
+  <rect class="dg-box dg-box-accent" x="16" y="111.875" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="136.2" font-size="15" text-anchor="start" font-weight="500">Test the raw landing</text>
+  <text class="dg-sub" x="34" y="157.9" font-size="12.5" text-anchor="start">Did it arrive, is the volume sane, is the schema what we agreed?</text>
+  <line class="dg-arrow" x1="380" y1="183.75" x2="380" y2="200.75" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="207.75" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="232.1" font-size="15" text-anchor="start" font-weight="500">Staging</text>
+  <text class="dg-sub" x="34" y="253.8" font-size="12.5" text-anchor="start">Typed, deduplicated</text>
+  <line class="dg-arrow" x1="380" y1="279.625" x2="380" y2="296.625" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="303.625" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="327.9" font-size="15" text-anchor="start" font-weight="500">Test the keys</text>
+  <text class="dg-sub" x="34" y="349.6" font-size="12.5" text-anchor="start">Unique primary key, no null foreign keys</text>
+  <line class="dg-arrow" x1="380" y1="375.5" x2="380" y2="392.5" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="399.5" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="423.8" font-size="15" text-anchor="start" font-weight="500">Marts</text>
+  <text class="dg-sub" x="34" y="445.5" font-size="12.5" text-anchor="start">Business tables</text>
+  <line class="dg-arrow" x1="380" y1="471.375" x2="380" y2="488.375" marker-end="url(#dg-a)"/>
+  <rect class="dg-box dg-box-accent" x="16" y="495.375" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="519.7" font-size="15" text-anchor="start" font-weight="500">Test the meaning</text>
+  <text class="dg-sub" x="34" y="541.4" font-size="12.5" text-anchor="start">Revenue is not negative, totals reconcile to the source</text>
+  </g>
+</svg>
+  <figcaption>Tests on raw data catch other people's problems; tests on marts catch your own. You need both, and they ask different questions.</figcaption>
+</figure>
+
+<p>Each test also needs a decision about severity:</p>
+
+<ul>
+  <li><strong>Blocking</strong> — the pipeline stops and nothing downstream is published. Correct for correctness-critical tables, where wrong data is worse than late data. This is sometimes called a circuit breaker.</li>
+  <li><strong>Warning</strong> — the pipeline continues, someone is notified. Correct for noisy heuristics and soft thresholds.</li>
+</ul>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">Do not make everything blocking</span>
+    <p>The instinct is to block on every test, since wrong data is bad. The result is a pipeline that halts three times a week on soft thresholds, an alert channel everyone mutes, and eventually a real failure that nobody looks at.</p>
+    <p>An ignored alert is worse than no alert, because it creates the appearance of monitoring without the substance. Block on the small number of tests where publishing wrong data is genuinely worse than publishing nothing.</p>
+  </div>
+</div>
+
+<h2 id="observability" class="anchored"><a class="anchor" href="#observability" aria-label="Link to this section">#</a>Observability<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="observability"><span>Done</span></label></h2>
+
+<p>You should find out a pipeline is broken from your monitoring, not from an executive's email. Four things to build:</p>
+
+<div class="cards">
+  <div class="card">
+    <span class="chip green">1</span>
+    <h3 id="freshness-slas" data-no-toc class="anchored"><a class="anchor" href="#freshness-slas" aria-label="Link to this section">#</a>Freshness SLAs</h3>
+    <p>Publish, per important table, when it will be updated by. "Orders mart is fresh as of 06:00 daily" is a contract — monitor it and alert on breach.</p>
+  </div>
+  <div class="card">
+    <span class="chip">2</span>
+    <h3 id="lineage" data-no-toc class="anchored"><a class="anchor" href="#lineage" aria-label="Link to this section">#</a>Lineage</h3>
+    <p>A graph of which tables feed which. Answers "what breaks if I change this?" and "where did this bad number come from?" Modern transformation tools generate it from your code.</p>
+  </div>
+  <div class="card">
+    <span class="chip amber">3</span>
+    <h3 id="run-metadata" data-no-toc class="anchored"><a class="anchor" href="#run-metadata" aria-label="Link to this section">#</a>Run metadata</h3>
+    <p>Log durations, rows in, rows out, and cost per run — then trend them. A job whose runtime has quietly tripled over a month is a future 3 a.m. incident announcing itself early.</p>
+  </div>
+  <div class="card">
+    <span class="chip">4</span>
+    <h3 id="runbooks" data-no-toc class="anchored"><a class="anchor" href="#runbooks" aria-label="Link to this section">#</a>Runbooks</h3>
+    <p>For each critical pipeline: how to rerun it, what is safe to backfill, who owns the source, who to tell. Written before you need it, because you will need it at the worst possible moment.</p>
+  </div>
+</div>
+
+<h2 id="a-useful-habit-reconciliation" class="anchored"><a class="anchor" href="#a-useful-habit-reconciliation" aria-label="Link to this section">#</a>A useful habit: reconciliation<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="a-useful-habit-reconciliation"><span>Done</span></label></h2>
+
+<p>The strongest test you can write compares your number to an independently produced number for the same thing.</p>
+
+<p>If Stripe says you processed $482,110 yesterday and your warehouse says $479,884, something is wrong, and you know it within a day rather than at quarter-end. Reconciliation tests catch entire categories of error that no schema check or null test could — missing rows, double-counted joins, currency mistakes, silently dropped partitions — because they check the <em>meaning</em> rather than the shape.</p>
+
+<p>Wherever a source system publishes its own totals, compare against them.</p>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<ul>
+  <li>Classify a proposed schema change as safe or breaking, and explain why a semantic change is more dangerous than a dropped column</li>
+  <li>Describe the lightweight version of a data contract and where it lives</li>
+  <li>Name all six test categories from memory and say what each one catches</li>
+  <li>Explain why a duplicate in a dimension table doubles your revenue figures</li>
+  <li>Decide whether a given test should block or warn, and argue against blocking on everything</li>
+  <li>Design a reconciliation test for a pipeline you have built</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="reliability.html"><span>Previous</span><b>Reliability</b></a><a class="pn pn-next" href="modeling.html"><span>Next</span><b>Modelling</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#the-failure-that-does-not-announce-itself">The failure that does not announce itself</a></li><li class="toc-l2"><a href="#schema-changes-which-ones-are-safe">Schema changes: which ones are safe</a></li><li class="toc-l3"><a href="#defences-from-cheap-to-serious">Defences, from cheap to serious</a></li><li class="toc-l2"><a href="#data-contracts">Data contracts</a></li><li class="toc-l2"><a href="#the-six-test-categories">The six test categories</a></li><li class="toc-l2"><a href="#where-tests-belong-and-what-failure-should-do">Where tests belong, and what failure should do</a></li><li class="toc-l2"><a href="#observability">Observability</a></li><li class="toc-l2"><a href="#a-useful-habit-reconciliation">A useful habit: reconciliation</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

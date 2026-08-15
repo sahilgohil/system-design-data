@@ -1,0 +1,147 @@
+<!--meta
+{
+  "title": "Reliability and correctness",
+  "navTitle": "Reliability",
+  "description": "Delivery semantics, the three idempotency techniques, and how to handle data that arrives after you already reported on it.",
+  "eyebrow": "The hard parts",
+  "lede": "Everything up to here describes systems that work. This lesson is about what makes them keep working — and it is where junior and senior designs visibly diverge."
+}
+-->
+
+<h2>Assume every step fails halfway</h2>
+
+<p>A job writes 60% of its output and the machine dies. A network call succeeds but the acknowledgement is lost, so the sender retries something that already happened. A source restates last week's numbers without telling anyone.</p>
+
+<p>None of these are edge cases. At any real volume they happen weekly. The question is not whether your pipeline will be interrupted mid-write — it will — but what state it leaves behind when it is.</p>
+
+<h2>The three delivery guarantees</h2>
+
+<figure class="diagram" data-diagram="delivery">
+  <figcaption>Real systems give you at-least-once. Exactly-once is not something you receive — it is something you build, by making the write itself safe to repeat.</figcaption>
+</figure>
+
+<p>The reasoning is worth walking through, because it explains why "exactly-once" is such a slippery marketing term.</p>
+
+<p>A sender transmits a record and waits for an acknowledgement. The acknowledgement does not arrive. Two possibilities: the record never landed, or it landed and the <em>acknowledgement</em> was lost. The sender cannot tell these apart. It must either retry — risking a duplicate — or not — risking loss. There is no third option available at the transport layer, however sophisticated.</p>
+
+<p>So real systems choose at-least-once and accept duplicates. You then make the duplicates harmless by ensuring that <strong>writing the same record twice has the same effect as writing it once.</strong> That is idempotency, and it is why practitioners often say "effectively-once" instead.</p>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">"Exactly-once" on a product page</span>
+    <p>When a tool advertises exactly-once, it almost always means exactly-once <em>within its own boundaries</em> — its internal state and its own sink, using transactions it controls end to end.</p>
+    <p>The moment your pipeline writes to something that tool does not control — an external API, a table another job also writes to, a file in a bucket — the guarantee ends at that boundary. It is a real feature; it is just narrower than the name suggests. Read it as "we handle our part", and handle yours.</p>
+  </div>
+</div>
+
+<h2>Three ways to make a write idempotent</h2>
+
+<p>In rough order of preference.</p>
+
+<h3>1. Overwrite by partition</h3>
+
+<p>Replace the entire logical partition you are processing, rather than adding to it.</p>
+
+<pre><code>DELETE FROM daily_sales WHERE dt = '2026-03-01';
+INSERT INTO daily_sales SELECT ... WHERE dt = '2026-03-01';</code></pre>
+
+<p>Simple, robust, and requires no unique key at all. It is a large part of why date partitioning is so universal — partitioning is not only a performance decision, it is a correctness one.</p>
+
+<h3>2. Merge on a stable key</h3>
+
+<pre><code>MERGE INTO orders t USING staged s ON t.order_id = s.order_id
+WHEN MATCHED THEN UPDATE SET ...
+WHEN NOT MATCHED THEN INSERT ...;</code></pre>
+
+<p>Handles updates as well as duplicates, which overwrite-by-partition does not when a record moves between partitions. It requires a genuine business key — <code>order_id</code>, not a row number.</p>
+
+<h3>3. Deduplicate on read or in staging</h3>
+
+<pre><code>SELECT * FROM (
+  SELECT *, ROW_NUMBER() OVER (
+    PARTITION BY event_id ORDER BY ingested_at DESC) AS rn
+  FROM raw_events
+) WHERE rn = 1</code></pre>
+
+<p>Keeps every copy and picks a winner. Useful when raw must stay append-only, at the cost of doing the work on every read.</p>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">Ask for a unique key on day one</span>
+    <p>All three techniques depend on being able to identify the same record twice. Ask every source for a stable unique identifier at the start of the project — retrofitting one is painful and sometimes impossible.</p>
+    <p>If a source genuinely has none, synthesise a <strong>deterministic hash</strong> of the fields that define uniqueness. Never a random UUID generated at ingestion time: it differs on every rerun, which defeats the entire purpose while looking like it solved the problem.</p>
+  </div>
+</div>
+
+<h2>Late and out-of-order data</h2>
+
+<p>Two clocks exist, and conflating them produces numbers that are wrong in ways nobody notices.</p>
+
+<ul>
+  <li><strong>Event time</strong> — when the thing actually happened.</li>
+  <li><strong>Processing time</strong> — when your system saw it.</li>
+</ul>
+
+<figure class="diagram" data-diagram="late-data">
+  <figcaption>Monday's total was written on Tuesday and was wrong from the moment it was written. Nothing failed, nothing alerted, and the number looks perfectly reasonable.</figcaption>
+</figure>
+
+<p>This is not an exotic scenario. Mobile apps buffer events offline. Vendors restate attribution data for three days. Payment providers attach refunds to charges from weeks ago. Any system with humans or devices at the edge has late data, always.</p>
+
+<h3>Handling it in batch: the lookback window</h3>
+
+<p>Do not reprocess only yesterday. Reprocess the last N days on every run, where N comes from the <em>observed</em> lateness distribution rather than a guess.</p>
+
+<p>Measure it: for a sample of records, compute <code>ingested_at - event_time</code> and look at the p99 and p99.9. If 99.9% of events arrive within four days, a seven-day lookback covers you with margin. Costs a little compute every night; prevents a class of silently wrong numbers.</p>
+
+<p>This is only safe if the write is idempotent — reprocessing seven days with an <code>INSERT</code> would give you seven copies. The two ideas on this page depend on each other, which is why they share a lesson.</p>
+
+<h3>Handling it in streaming: watermarks</h3>
+
+<p>A watermark is the engine's assertion that everything up to time T has probably arrived, which lets a window close and emit a result. Anything later is dropped, or routed to a side output for separate handling.</p>
+
+<p>The allowed lateness is a configuration value, and it is genuinely a business decision, not a technical default. "We will count events up to 2 hours late and discard the rest" is a statement about what the numbers mean, and someone other than you should agree to it.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">Store both timestamps. Always.</span>
+    <p>Every record should carry <code>event_time</code> (when it happened) and <code>ingested_at</code> (when you received it). It costs two columns.</p>
+    <p>Aggregate on event time, monitor freshness on ingestion time, and measure lateness by subtracting one from the other. Without both, "why is last Tuesday's number different now?" is unanswerable.</p>
+  </div>
+</div>
+
+<h2>Restatement: deciding what history means</h2>
+
+<p>If you reprocess late data, historical numbers change. Someone will notice, and the conversation is much better if you had it in advance.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Policy</th><th>Means</th><th>Suits</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Always current</strong></td><td>Numbers update whenever new data arrives, silently</td><td>Product analytics, experimentation</td></tr>
+    <tr><td><strong>Announced restatement</strong></td><td>History can change, but a change is communicated</td><td>Marketing attribution, operational reporting</td></tr>
+    <tr><td><strong>Frozen after a period</strong></td><td>After close of month, the number never moves again</td><td>Finance, regulatory reporting</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Finance teams care about this intensely. Discovering their expectations <em>after</em> you have silently changed last quarter's revenue is a genuinely bad day, and one that damages trust in the platform for a long time afterwards.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">The exercise</span>
+    <p>Run a streaming consumer that writes to a table. Kill it mid-run. Restart it. Count the rows.</p>
+    <p>Then add an <code>event_id</code> and a deduplicating read, and do it again. The difference between the two row counts is the whole of this lesson, and seeing it on your own machine makes it permanent in a way reading cannot.</p>
+  </div>
+</div>
+
+<h2>Checklist</h2>
+
+<ul>
+  <li>Explain why exactly-once delivery is not achievable at the transport layer, using the lost-acknowledgement argument</li>
+  <li>Make a non-idempotent write idempotent, choosing correctly between overwrite, merge and dedup for a given situation</li>
+  <li>Say why a random UUID assigned at ingestion is a broken deduplication key</li>
+  <li>Distinguish event time from processing time, and give a real scenario where the gap is days</li>
+  <li>Choose a lookback window from a lateness distribution rather than by intuition</li>
+  <li>Name the three restatement policies and say which one a finance team will want</li>
+</ul>

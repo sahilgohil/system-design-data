@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en" data-page="foundations">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foundations · System Design for Data Engineering</title>
+<meta name="description" content="The reference pipeline, the OLTP/OLAP split, and the four constraints every data system design trades between.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html" class="active" aria-current="page">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">Start here</p>
+      <h1>Foundations</h1>
+      <p class="lede">This page assumes nothing and builds the model the rest of the course hangs off. If you only read one lesson, read this one — every later page refers back to it.</p>
+      <h2 id="the-problem-this-whole-field-exists-to-solve" class="anchored"><a class="anchor" href="#the-problem-this-whole-field-exists-to-solve" aria-label="Link to this section">#</a>The problem this whole field exists to solve<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-problem-this-whole-field-exists-to-solve"><span>Done</span></label></h2>
+
+<p>A company has an application. The application has a database, and that database is very good at one thing: answering questions about one customer, one order, one session, right now.</p>
+
+<p>Then someone asks: <em>what did revenue do by region over the last three years, split by product category?</em></p>
+
+<p>You can write that query against the application's database. It will work — for a while. Then the company grows, the query starts taking four minutes, and one Tuesday it locks a table during a sale and the checkout page goes down. Now you have learned the founding lesson of data engineering the expensive way: <strong>the database that runs your business is the wrong place to analyse your business.</strong></p>
+
+<p>So you copy the data somewhere else. And immediately you have a dozen new problems. How often do you copy it? What happens when the copy fails halfway? What if a row was deleted in the source? What if someone renames a column? Who notices when the numbers go wrong?</p>
+
+<p>Answering those questions well, at scale, for years, is data system design.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">A definition worth memorising</span>
+    <p>Data system design is deciding how data moves from where it is <em>produced</em> to where it is <em>useful</em> — reliably, correctly, affordably, and in a way the next engineer can maintain.</p>
+  </div>
+</div>
+
+<h2 id="how-this-differs-from-the-system-design-you-may-have-read-ab" class="anchored"><a class="anchor" href="#how-this-differs-from-the-system-design-you-may-have-read-ab" aria-label="Link to this section">#</a>How this differs from the system design you may have read about<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="how-this-differs-from-the-system-design-you-may-have-read-ab"><span>Done</span></label></h2>
+
+<p>If you have read about system design before, it was probably <strong>backend</strong> system design: design Twitter, design a URL shortener. That discipline optimises for many users doing tiny operations at once. Data system design optimises for few consumers doing enormous operations, usually not in real time. The questions are genuinely different.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Backend system design asks</th><th>Data system design asks</th></tr></thead>
+  <tbody>
+    <tr><td>How do I serve 50,000 requests per second?</td><td>How do I process 500 GB a day without going bankrupt?</td></tr>
+    <tr><td>How do I keep p99 latency under 100 ms?</td><td>How fresh must this table be — 5 minutes or 6 hours?</td></tr>
+    <tr><td>How do I avoid downtime?</td><td>How do I recover when yesterday's data was <em>wrong</em>?</td></tr>
+    <tr><td>How do I shard this database?</td><td>How do I lay files out so a query scans 1% of them instead of 100%?</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Notice the third row especially. In backend engineering, the failure you fear is the system being <em>down</em> — loud, obvious, everyone knows within a minute. In data engineering, the failure you fear is the system being <em>wrong</em> — silent, and capable of running for weeks while people make decisions on it.</p>
+
+<h2 id="the-reference-pipeline" class="anchored"><a class="anchor" href="#the-reference-pipeline" aria-label="Link to this section">#</a>The reference pipeline<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-reference-pipeline"><span>Done</span></label></h2>
+
+<p>Nearly every data system — a startup's first pipeline, a bank's platform, the thing your company already has — is a variation of the same five-stage shape. Learn it now, and for the rest of your career you can place any new tool or architecture by asking: <em>which box does this fill?</em></p>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 519" role="img" class="dg">
+  <title>The reference pipeline</title><desc>Five stages: sources, ingestion, storage, transformation, serving</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">The reference pipeline</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box" x="16" y="16" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="40.3" font-size="15" text-anchor="start" font-weight="500">Sources</text>
+  <text class="dg-sub" x="34" y="62.0" font-size="12.5" text-anchor="start">App databases, events, SaaS APIs, file drops</text>
+  <line class="dg-arrow" x1="380" y1="87.875" x2="380" y2="104.875" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="111.875" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="136.2" font-size="15" text-anchor="start" font-weight="500">Ingestion</text>
+  <text class="dg-sub" x="34" y="157.9" font-size="12.5" text-anchor="start">Extract and land the data without changing it</text>
+  <line class="dg-arrow" x1="380" y1="183.75" x2="380" y2="200.75" marker-end="url(#dg-a)"/>
+  <rect class="dg-box dg-box-accent" x="16" y="207.75" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="232.1" font-size="15" text-anchor="start" font-weight="500">Storage</text>
+  <text class="dg-sub" x="34" y="253.8" font-size="12.5" text-anchor="start">Raw, then cleaned, then modelled</text>
+  <line class="dg-arrow" x1="380" y1="279.625" x2="380" y2="296.625" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="303.625" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="327.9" font-size="15" text-anchor="start" font-weight="500">Transformation</text>
+  <text class="dg-sub" x="34" y="349.6" font-size="12.5" text-anchor="start">Clean, join, aggregate into business meaning</text>
+  <line class="dg-arrow" x1="380" y1="375.5" x2="380" y2="392.5" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="399.5" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="423.8" font-size="15" text-anchor="start" font-weight="500">Serving</text>
+  <text class="dg-sub" x="34" y="445.5" font-size="12.5" text-anchor="start">Dashboards, ML features, APIs, business tools</text>
+  </g>
+</svg>
+  <figcaption>Data flows one way through five stages. Almost every tool you will ever hear about lives in exactly one of these boxes.</figcaption>
+</figure>
+
+<p>Wrapped around all five stages are three concerns that apply everywhere and belong to no single box:</p>
+
+<ul>
+  <li><strong>Orchestration</strong> — what runs, in what order, when, and what happens when it fails.</li>
+  <li><strong>Observability</strong> — is it fresh, is it correct, what broke, what does it cost.</li>
+  <li><strong>Governance</strong> — who can see what, where the personal data is, how long it is kept.</li>
+</ul>
+
+<p>These three are the difference between a demo and a production system, and they are where most of the later pages in this course live.</p>
+
+<h2 id="oltp-and-olap-the-split-that-explains-everything" class="anchored"><a class="anchor" href="#oltp-and-olap-the-split-that-explains-everything" aria-label="Link to this section">#</a>OLTP and OLAP: the split that explains everything<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="oltp-and-olap-the-split-that-explains-everything"><span>Done</span></label></h2>
+
+<p>This is the single most important idea in the course. Two kinds of database exist, built on opposite assumptions, and confusing them is the root cause of an enormous share of beginner mistakes.</p>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 273" role="img" class="dg">
+  <title>The two kinds of database</title><desc>OLTP is row-oriented and serves small fast requests; OLAP is column-oriented and serves large scans</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">The two kinds of database</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-muted" x="16" y="16" width="354" height="202.825" rx="10" ry="10"/>
+  <text class="dg-label" x="193" y="49.1" font-size="16" text-anchor="middle" font-weight="500">OLTP · your app's database</text>
+  <circle class="dg-dot" cx="36" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="48" y="81.5" font-size="12.5" text-anchor="start">Question: get order #4521</text>
+  <circle class="dg-dot" cx="36" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="48" y="108.6" font-size="12.5" text-anchor="start">Touches 1 row, all 200 columns</text>
+  <circle class="dg-dot" cx="36" cy="132.9" r="2.5"/>
+  <text class="dg-sub" x="48" y="135.7" font-size="12.5" text-anchor="start">Row-oriented on disk</text>
+  <circle class="dg-dot" cx="36" cy="160.1" r="2.5"/>
+  <text class="dg-sub" x="48" y="162.8" font-size="12.5" text-anchor="start">Optimised for latency per request</text>
+  <circle class="dg-dot" cx="36" cy="187.2" r="2.5"/>
+  <text class="dg-sub" x="48" y="189.9" font-size="12.5" text-anchor="start">Postgres, MySQL, DynamoDB</text>
+  <rect class="dg-box dg-box-accent" x="390" y="16" width="354" height="202.825" rx="10" ry="10"/>
+  <text class="dg-label" x="567" y="49.1" font-size="16" text-anchor="middle" font-weight="500">OLAP · your analytics database</text>
+  <circle class="dg-dot" cx="410" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="422" y="81.5" font-size="12.5" text-anchor="start">Question: revenue by region, 3 years</text>
+  <circle class="dg-dot" cx="410" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="422" y="108.6" font-size="12.5" text-anchor="start">Touches 1 billion rows, 3 columns</text>
+  <circle class="dg-dot" cx="410" cy="132.9" r="2.5"/>
+  <text class="dg-sub" x="422" y="135.7" font-size="12.5" text-anchor="start">Column-oriented on disk</text>
+  <circle class="dg-dot" cx="410" cy="160.1" r="2.5"/>
+  <text class="dg-sub" x="422" y="162.8" font-size="12.5" text-anchor="start">Optimised for throughput per query</text>
+  <circle class="dg-dot" cx="410" cy="187.2" r="2.5"/>
+  <text class="dg-sub" x="422" y="189.9" font-size="12.5" text-anchor="start">Snowflake, BigQuery, DuckDB</text>
+  </g>
+</svg>
+  <figcaption>The same data, stored two different ways, because the two systems are asked completely different questions.</figcaption>
+</figure>
+
+<p><strong>OLTP</strong> (Online Transaction Processing) is the database behind your application. <strong>OLAP</strong> (Online Analytical Processing) is the database behind your analytics.</p>
+
+<h3 id="why-the-storage-layout-is-the-whole-story" class="anchored"><a class="anchor" href="#why-the-storage-layout-is-the-whole-story" aria-label="Link to this section">#</a>Why the storage layout is the whole story</h3>
+
+<p>Picture a table with 200 columns and one billion rows, and think about how the bytes sit on disk.</p>
+
+<p><strong>Row storage</strong> keeps each record's fields next to each other: all of row 1, then all of row 2. Fetching one complete record is a single seek — perfect for "show me order #4521". But summing one column means reading all 200 columns of all one billion rows, because the values you want are scattered thinly across the whole file.</p>
+
+<p><strong>Column storage</strong> keeps each column's values next to each other: every <code>country</code>, then every <code>amount</code>. Summing one column now reads one two-hundredth of the data. And because a column holds values of a single type — often with few distinct values, like <code>country</code> — it compresses five to twenty times better than mixed row data.</p>
+
+<div class="analogy">
+  <span class="analogy-label">Analogy</span>
+  <p>A row store is a filing cabinet of paper forms: one folder per customer, every field about that customer inside it. Pulling one customer's file is instant. Answering "what is the average age of all customers" means opening every folder in the building.</p>
+  <p>A column store is that same data typed into one long list of every name and a separate long list of every age. The average age is one list, read once. But reconstructing a single customer's full record now means visiting two hundred different lists.</p>
+  <p><strong>Where it breaks:</strong> a real column store does not visit those lists one at a time — it reads them in parallel, and a good one skips entire files using stored statistics. The analogy gets the trade-off right and the mechanics wrong.</p>
+</div>
+
+<p>This is why a query that takes 40 minutes on Postgres takes 4 seconds on an analytics warehouse. It is not that the warehouse has faster disks. It is that it reads a hundredth of the bytes.</p>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">The confusion to head off</span>
+    <p>"OLAP" sounds like it should mean <em>slow, offline, yesterday's data</em>, and "OLTP" sounds like it should mean <em>live and modern</em>. Neither is true — both have "online" in the name and both serve interactive queries.</p>
+    <p>The one-line test: <strong>OLTP is optimised for how fast one small request finishes; OLAP is optimised for how much data one big request can chew through.</strong> Freshness is a completely separate axis, and you choose it independently.</p>
+  </div>
+</div>
+
+<h2 id="batch-and-streaming-are-a-spectrum-not-a-switch" class="anchored"><a class="anchor" href="#batch-and-streaming-are-a-spectrum-not-a-switch" aria-label="Link to this section">#</a>Batch and streaming are a spectrum, not a switch<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="batch-and-streaming-are-a-spectrum-not-a-switch"><span>Done</span></label></h2>
+
+<p>The other axis you choose on is freshness: how old the data is when someone uses it. Beginners tend to treat this as a binary — batch or real-time — but it is a dial, and every notch to the right costs more money and much more engineering time.</p>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 188" role="img" class="dg">
+  <title>The freshness spectrum</title><desc>Daily batch, hourly batch, micro-batch, streaming and live lookups, increasing in cost</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">The freshness spectrum</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-accent" x="16" y="46" width="220" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="126" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Daily batch</text>
+  <text class="dg-sub" x="126" y="110.3" font-size="12.5" text-anchor="middle">cheapest · start here</text>
+  <rect class="dg-box" x="240" y="46" width="164" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="322" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Hourly</text>
+  <text class="dg-sub" x="322" y="110.3" font-size="12.5" text-anchor="middle">solves most of 'we want</text>
+  <text class="dg-sub" x="322" y="128.4" font-size="12.5" text-anchor="middle">real-time'</text>
+  <rect class="dg-box" x="408" y="46" width="108" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="462" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Micro-batch</text>
+  <text class="dg-sub" x="462" y="110.3" font-size="12.5" text-anchor="middle">every 5 min</text>
+  <rect class="dg-box dg-box-muted" x="520" y="46" width="108" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="574" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Streaming</text>
+  <text class="dg-sub" x="574" y="110.3" font-size="12.5" text-anchor="middle">seconds ·</text>
+  <text class="dg-sub" x="574" y="128.4" font-size="12.5" text-anchor="middle">always-on</text>
+  <rect class="dg-box dg-box-muted" x="632" y="46" width="112" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="686" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Live</text>
+  <text class="dg-sub" x="686" y="110.3" font-size="12.5" text-anchor="middle">milliseconds</text>
+  <text class="dg-sub" x="16" y="30.3" font-size="12.5" text-anchor="start">Fresher data, higher cost and complexity →</text>
+  </g>
+</svg>
+  <figcaption>Freshness is a dial with a price attached. Streaming is roughly five to ten times the engineering cost of batch, and is needed far less often than people claim.</figcaption>
+</figure>
+
+<p>The difference is not only cost. Batch work is <em>bounded</em>: you process yesterday's data, yesterday is over, so if the job fails you run it again and you are done. Streaming work is <em>unbounded</em>: there is no natural end, the job holds state between events, time and correctness become entangled, and "just run it again" stops being a sentence that means anything simple.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">The question to ask instead</span>
+    <p>When someone asks for real-time, do not ask how fresh they want the data. Ask: <em>what decision do you make with this, and how quickly do you make it?</em></p>
+    <p>A monthly board report needs daily data. A marketing dashboard needs hourly. Blocking a fraudulent transaction needs milliseconds — and should not go through your warehouse at all. In practice, "the executive wants real-time" usually means "yesterday's number feels stale", which hourly solves at a fraction of the cost.</p>
+  </div>
+</div>
+
+<p><strong>The default is batch.</strong> Make streaming justify itself with a named decision that genuinely cannot wait.</p>
+
+<h2 id="the-four-constraints-you-are-always-trading-between" class="anchored"><a class="anchor" href="#the-four-constraints-you-are-always-trading-between" aria-label="Link to this section">#</a>The four constraints you are always trading between<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-four-constraints-you-are-always-trading-between"><span>Done</span></label></h2>
+
+<p>No design maximises all four of these. Every choice in the rest of this course is a trade among them, and being able to <em>name which one you traded away</em> is most of what separates a considered design from a lucky one.</p>
+
+<div class="cards">
+  <div class="card">
+    <span class="chip green">1</span>
+    <h3 id="correctness" data-no-toc class="anchored"><a class="anchor" href="#correctness" aria-label="Link to this section">#</a>Correctness</h3>
+    <p>The numbers are right, and stay right when jobs fail, data arrives late, or someone reruns last month by accident.</p>
+  </div>
+  <div class="card">
+    <span class="chip">2</span>
+    <h3 id="freshness" data-no-toc class="anchored"><a class="anchor" href="#freshness" aria-label="Link to this section">#</a>Freshness</h3>
+    <p>How old the data is when it is used. The most expensive constraint to tighten, and the one most often over-specified.</p>
+  </div>
+  <div class="card">
+    <span class="chip amber">3</span>
+    <h3 id="cost" data-no-toc class="anchored"><a class="anchor" href="#cost" aria-label="Link to this section">#</a>Cost</h3>
+    <p>Compute, storage, and engineer hours. The third is usually the largest and never appears on the cloud bill.</p>
+  </div>
+  <div class="card">
+    <span class="chip">4</span>
+    <h3 id="maintainability" data-no-toc class="anchored"><a class="anchor" href="#maintainability" aria-label="Link to this section">#</a>Maintainability</h3>
+    <p>Can someone else understand, change and debug this in a year? Including you, having forgotten all of it.</p>
+  </div>
+</div>
+
+<h2 id="what-a-good-data-system-looks-like" class="anchored"><a class="anchor" href="#what-a-good-data-system-looks-like" aria-label="Link to this section">#</a>What a good data system looks like<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="what-a-good-data-system-looks-like"><span>Done</span></label></h2>
+
+<p>Five properties recur throughout this course. You will not fully understand them yet — each has its own lesson later. Read them now so the words are familiar when they arrive.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Property</th><th>Means</th><th>Covered in</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Idempotent</strong></td><td>Running the same job twice gives the same result, not double the rows.</td><td><a href="reliability.html">Reliability</a></td></tr>
+    <tr><td><strong>Incremental</strong></td><td>It processes the new data, not all the data, every time.</td><td><a href="modeling.html">Modelling</a></td></tr>
+    <tr><td><strong>Reproducible</strong></td><td>Any output can be rebuilt from raw inputs, because raw was kept.</td><td><a href="storage.html">Storage</a></td></tr>
+    <tr><td><strong>Observable</strong></td><td>You learn it is broken before your users tell you.</td><td><a href="quality.html">Quality</a></td></tr>
+    <tr><td><strong>Loosely coupled</strong></td><td>A change upstream does not silently corrupt everything downstream.</td><td><a href="quality.html">Quality</a></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="a-note-on-tools" class="anchored"><a class="anchor" href="#a-note-on-tools" aria-label="Link to this section">#</a>A note on tools<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="a-note-on-tools"><span>Done</span></label></h2>
+
+<p>This course names real tools — Snowflake, Kafka, Airflow, Spark, dbt — so you recognise them in job descriptions and conversations. But tools turn over every few years and the ideas do not. Column storage was a good idea in 2005 and will be a good idea in 2035; the product implementing it will have changed names twice by then.</p>
+
+<p>When you meet a tool you have never heard of, ask two questions: <em>which box of the reference pipeline does it fill, and which of the four constraints is it trading?</em> That will get you further than reading its marketing page.</p>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<p>Before moving on, you should be able to:</p>
+
+<ul>
+  <li>Draw the five-stage reference pipeline from memory, and name the three cross-cutting concerns</li>
+  <li>Explain <em>why</em> column storage makes an analytical query faster, in terms of bytes read — not just assert that it does</li>
+  <li>Give the one-line test separating OLTP from OLAP without using the words "online" or "analytical"</li>
+  <li>Explain to a colleague why their request for real-time data might be better served by hourly batch, and say what question you would ask them first</li>
+  <li>Name the four constraints, and identify which one a design has sacrificed when you are shown one</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="index.html"><span>Previous</span><b>Home</b></a><a class="pn pn-next" href="storage.html"><span>Next</span><b>Storage</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#the-problem-this-whole-field-exists-to-solve">The problem this whole field exists to solve</a></li><li class="toc-l2"><a href="#how-this-differs-from-the-system-design-you-may-have-read-ab">How this differs from the system design you may have read about</a></li><li class="toc-l2"><a href="#the-reference-pipeline">The reference pipeline</a></li><li class="toc-l2"><a href="#oltp-and-olap-the-split-that-explains-everything">OLTP and OLAP: the split that explains everything</a></li><li class="toc-l3"><a href="#why-the-storage-layout-is-the-whole-story">Why the storage layout is the whole story</a></li><li class="toc-l2"><a href="#batch-and-streaming-are-a-spectrum-not-a-switch">Batch and streaming are a spectrum, not a switch</a></li><li class="toc-l2"><a href="#the-four-constraints-you-are-always-trading-between">The four constraints you are always trading between</a></li><li class="toc-l2"><a href="#what-a-good-data-system-looks-like">What a good data system looks like</a></li><li class="toc-l2"><a href="#a-note-on-tools">A note on tools</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

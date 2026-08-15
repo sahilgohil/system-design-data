@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en" data-page="ingestion">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting data in · System Design for Data Engineering</title>
+<meta name="description" content="The five ingestion patterns — snapshots, high-water-marks, CDC, event streams and file drops — and the traps in each.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html" class="active" aria-current="page">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">The building blocks</p>
+      <h1>Getting data in</h1>
+      <p class="lede">Five patterns cover about 95% of real systems. Choosing the wrong one is recoverable; not knowing which traps come with the one you chose is not.</p>
+      <h2 id="the-awkward-truth-about-sources" class="anchored"><a class="anchor" href="#the-awkward-truth-about-sources" aria-label="Link to this section">#</a>The awkward truth about sources<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-awkward-truth-about-sources"><span>Done</span></label></h2>
+
+<p>Every source belongs to someone else. Their schema is theirs, their uptime is theirs, and their decision to rename a column on a Tuesday afternoon is theirs. You are a guest in their system, and they very often do not know you exist.</p>
+
+<p>This is the root of most ingestion difficulty. The mechanics of copying data are easy. The hard part is copying it in a way that survives someone else changing their mind.</p>
+
+<div class="analogy">
+  <span class="analogy-label">Analogy</span>
+  <p>Two ways to know what a neighbour is doing. You can look through their window every hour and note what changed — cheap to set up, but you miss anything that happens between looks, and you have no idea when they redecorate. Or they can agree to tell you whenever something changes — more to arrange, and far more reliable.</p>
+  <p>The first is <strong>pull</strong>. The second is <strong>push</strong>. Every pattern below is one or the other.</p>
+  <p><strong>Where it breaks:</strong> a neighbour who tells you things is being polite; a source system that pushes events is making a commitment it can break silently. Push is more reliable, not automatically reliable.</p>
+</div>
+
+<h2 id="pattern-1-full-snapshot" class="anchored"><a class="anchor" href="#pattern-1-full-snapshot" aria-label="Link to this section">#</a>Pattern 1 — Full snapshot<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="pattern-1-full-snapshot"><span>Done</span></label></h2>
+
+<p>Copy the whole table, every run.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Good</th><th>Bad</th></tr></thead>
+  <tbody>
+    <tr><td>Trivial to build and reason about</td><td>Does not scale — fine at 10 million rows, ruinous at 10 billion</td></tr>
+    <tr><td>Self-correcting: yesterday's mistakes vanish today</td><td>Heavy load on the source each run</td></tr>
+    <tr><td>Handles deletes for free</td><td>Loses history unless you snapshot to dated partitions</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><strong>Use it for</strong> small dimension tables, reference data, and any early-stage pipeline where simplicity is worth more than efficiency. Beginners often skip past this pattern as too naive. It is frequently the right answer, and it is always the right place to start.</p>
+
+<h2 id="pattern-2-incremental-with-a-high-water-mark" class="anchored"><a class="anchor" href="#pattern-2-incremental-with-a-high-water-mark" aria-label="Link to this section">#</a>Pattern 2 — Incremental with a high-water mark<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="pattern-2-incremental-with-a-high-water-mark"><span>Done</span></label></h2>
+
+<p>Remember the largest <code>updated_at</code> you have seen, and next time ask only for rows above it.</p>
+
+<pre><code>-- Cheap, common, and full of sharp edges
+SELECT * FROM orders WHERE updated_at &gt; :last_watermark</code></pre>
+
+<p>This is the most widely used pattern in the world and the one that quietly produces the most wrong data. Four failure modes, all of which you should know before writing one:</p>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">The four ways a high-water mark lies to you</span>
+    <p><strong>Hard deletes are invisible.</strong> A deleted row is never "greater than the watermark", so your copy keeps a row that no longer exists in the source. Nothing errors. Your order count is simply too high, forever.</p>
+    <p><strong><code>updated_at</code> does not always update.</strong> Bulk migrations and admin scripts routinely bypass it. If the column is set in application code rather than by the database, some code path is missing it right now.</p>
+    <p><strong>Open transactions skip rows.</strong> A transaction that began before your watermark but committed after it is silently missed — its rows have older timestamps than the mark you have already advanced past.</p>
+    <p><strong>Timezones.</strong> Mixing UTC and local time in a watermark is a classic silent-data-loss bug, and it goes unnoticed until a daylight-saving change makes it an hour worse.</p>
+  </div>
+</div>
+
+<p>The standard mitigation for the third and fourth problems is an <strong>overlap window</strong>: re-pull the last few hours or days every run and deduplicate. That only works if your writes are idempotent — which is the subject of the <a href="reliability.html">Reliability</a> lesson, and the reason it comes soon after this one.</p>
+
+<h2 id="pattern-3-change-data-capture" class="anchored"><a class="anchor" href="#pattern-3-change-data-capture" aria-label="Link to this section">#</a>Pattern 3 — Change Data Capture<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="pattern-3-change-data-capture"><span>Done</span></label></h2>
+
+<p>Instead of querying the table, read the database's own replication log — the Postgres WAL, the MySQL binlog — and turn every insert, update and delete into an event. Tools: Debezium, Fivetran, AWS DMS.</p>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 309" role="img" class="dg">
+  <title>The two ways to pull changes from a database</title><desc>High-water-mark queries the source table; CDC reads the replication log</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">The two ways to pull changes from a database</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-muted" x="16" y="16" width="354" height="239.075" rx="10" ry="10"/>
+  <text class="dg-label" x="193" y="49.1" font-size="16" text-anchor="middle" font-weight="500">High-water-mark</text>
+  <circle class="dg-dot" cx="36" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="48" y="81.5" font-size="12.5" text-anchor="start">Asks: rows WHERE updated_at &gt; last seen</text>
+  <circle class="dg-dot" cx="36" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="48" y="108.6" font-size="12.5" text-anchor="start">Deletes: invisible, the row just stops</text>
+  <text class="dg-sub" x="48" y="126.7" font-size="12.5" text-anchor="start">changing</text>
+  <circle class="dg-dot" cx="36" cy="151.1" r="2.5"/>
+  <text class="dg-sub" x="48" y="153.8" font-size="12.5" text-anchor="start">Missed writes: yes, if updated_at is not</text>
+  <text class="dg-sub" x="48" y="171.9" font-size="12.5" text-anchor="start">touched</text>
+  <circle class="dg-dot" cx="36" cy="196.3" r="2.5"/>
+  <text class="dg-sub" x="48" y="199.1" font-size="12.5" text-anchor="start">Load on source: a query every run</text>
+  <circle class="dg-dot" cx="36" cy="223.4" r="2.5"/>
+  <text class="dg-sub" x="48" y="226.2" font-size="12.5" text-anchor="start">Setup: an afternoon</text>
+  <rect class="dg-box dg-box-accent" x="390" y="16" width="354" height="239.075" rx="10" ry="10"/>
+  <text class="dg-label" x="567" y="49.1" font-size="16" text-anchor="middle" font-weight="500">Change Data Capture</text>
+  <circle class="dg-dot" cx="410" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="422" y="81.5" font-size="12.5" text-anchor="start">Reads: the database's own replication log</text>
+  <circle class="dg-dot" cx="410" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="422" y="108.6" font-size="12.5" text-anchor="start">Deletes: captured as delete events</text>
+  <circle class="dg-dot" cx="410" cy="132.9" r="2.5"/>
+  <text class="dg-sub" x="422" y="135.7" font-size="12.5" text-anchor="start">Missed writes: none, the log has every change</text>
+  <circle class="dg-dot" cx="410" cy="160.1" r="2.5"/>
+  <text class="dg-sub" x="422" y="162.8" font-size="12.5" text-anchor="start">Load on source: almost none</text>
+  <circle class="dg-dot" cx="410" cy="187.2" r="2.5"/>
+  <text class="dg-sub" x="422" y="189.9" font-size="12.5" text-anchor="start">Setup: replication access and a running</text>
+  <text class="dg-sub" x="422" y="208.1" font-size="12.5" text-anchor="start">connector</text>
+  </g>
+</svg>
+  <figcaption>CDC solves exactly the failure modes a high-water-mark has, because it reads the record of what happened rather than inferring it from the current state.</figcaption>
+</figure>
+
+<p>The catch is that CDC gives you a stream of <em>changes</em>, and you still have to apply them correctly. That normally means a <code>MERGE</code> keyed on the primary key and ordered by log position — get the ordering wrong and you will apply an old update after a newer one.</p>
+
+<p><strong>Use it when</strong> the source table is large, deletes matter, or you need freshness under an hour. <strong>Do not reach for it</strong> on a 50,000-row settings table that changes twice a week; a snapshot is better.</p>
+
+<h2 id="pattern-4-event-streams" class="anchored"><a class="anchor" href="#pattern-4-event-streams" aria-label="Link to this section">#</a>Pattern 4 — Event streams<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="pattern-4-event-streams"><span>Done</span></label></h2>
+
+<p>The application publishes events — <code>order_placed</code>, <code>page_viewed</code> — to a log such as Kafka, Kinesis or Pub/Sub. Consumers read from the log independently, each at its own pace.</p>
+
+<p>Four terms carry most of the meaning:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Term</th><th>What it means</th><th>Why you care</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Topic</strong></td><td>A named stream of events</td><td>The unit you subscribe to</td></tr>
+    <tr><td><strong>Partition</strong></td><td>A shard of a topic</td><td>Ordering is guaranteed <em>within</em> a partition only — so key by <code>user_id</code> if one user's events must stay in order</td></tr>
+    <tr><td><strong>Offset</strong></td><td>A consumer's position in the log</td><td>Replaying after a bug means resetting it</td></tr>
+    <tr><td><strong>Retention</strong></td><td>How long the log keeps data, often 7 days</td><td>This is your replay budget when something breaks. It is a hard deadline on noticing</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">Events and CDC look similar and are not</span>
+    <p>Both produce a stream of records about changes, so they get lumped together. The difference is who decides what the record means.</p>
+    <p><strong>CDC</strong> describes <em>rows changing</em>: "the <code>status</code> column of order 4521 went from <code>pending</code> to <code>shipped</code>". You are reading someone's internal database structure, and you are coupled to it.</p>
+    <p><strong>Events</strong> describe <em>things happening</em>: "order 4521 shipped, at this time, with this carrier". The producer chose to publish that, and owns its meaning.</p>
+    <p>CDC is easier to switch on without anyone's cooperation. Events are better data, because they survive the source team refactoring their schema.</p>
+  </div>
+</div>
+
+<h2 id="pattern-5-files-and-third-party-apis" class="anchored"><a class="anchor" href="#pattern-5-files-and-third-party-apis" aria-label="Link to this section">#</a>Pattern 5 — Files and third-party APIs<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="pattern-5-files-and-third-party-apis"><span>Done</span></label></h2>
+
+<p>A vendor drops CSVs on an SFTP server. A SaaS tool exposes a REST API. Unglamorous, ubiquitous, and where a surprising share of real data engineering time goes.</p>
+
+<p>Four things to get right:</p>
+
+<ul>
+  <li><strong>Pagination and rate limits</strong> — handle cursors properly, and respond to a <code>429</code> with exponential backoff plus jitter rather than an immediate retry.</li>
+  <li><strong>Retries</strong> — network calls fail. Assume it, and make retrying safe rather than merely possible.</li>
+  <li><strong>Deterministic landing paths</strong> — write to <code>raw/stripe/charges/dt=2026-03-01/</code> so a rerun overwrites the same place instead of adding a second copy alongside the first.</li>
+  <li><strong>Keep the untouched response.</strong> Land the raw payload before you parse it.</li>
+</ul>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">The single most valuable habit in ingestion</span>
+    <p>Land raw, unmodified, before parsing. Always.</p>
+    <p>Parsing logic has bugs. Vendors add fields. Six months from now you will discover that a field you ignored was important all along. If you kept the raw payload, that is an afternoon of reprocessing. If you did not, it is six months of missing data that no amount of engineering can recover.</p>
+  </div>
+</div>
+
+<h2 id="choosing-in-practice" class="anchored"><a class="anchor" href="#choosing-in-practice" aria-label="Link to this section">#</a>Choosing, in practice<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="choosing-in-practice"><span>Done</span></label></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>If the source is…</th><th>Use</th><th>Because</th></tr></thead>
+  <tbody>
+    <tr><td>A small, slow-changing table</td><td>Full snapshot</td><td>Simplicity beats efficiency; deletes handled free</td></tr>
+    <tr><td>A large append-only table</td><td>High-water-mark</td><td>Rows never change, so the pattern's weaknesses do not apply</td></tr>
+    <tr><td>A large table with updates and deletes</td><td>CDC</td><td>Only pattern that sees deletes and missed timestamp updates</td></tr>
+    <tr><td>Genuinely event-shaped activity</td><td>Event stream</td><td>Decouples you from the producer's schema</td></tr>
+    <tr><td>A vendor you do not control</td><td>API or file drop</td><td>You take what you are given — so land it raw</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>One question decides more of this than any other: <strong>can rows change or be deleted after they are created?</strong> If no, high-water-mark is fine and cheap. If yes, you need CDC, or snapshots, or an explicit and documented acceptance that your copy will drift from the truth.</p>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<ul>
+  <li>Name the five ingestion patterns and give a source that suits each</li>
+  <li>List the four ways a high-water-mark silently loses data, and say what an overlap window fixes and what it does not</li>
+  <li>Explain what CDC reads, and why that makes deletes visible when a timestamp query cannot see them</li>
+  <li>Explain the difference between a CDC record and a domain event to someone who thinks they are the same thing</li>
+  <li>Say why partition keys matter in Kafka, in terms of ordering</li>
+  <li>Justify landing raw data unmodified, using a concrete failure it prevents</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="storage.html"><span>Previous</span><b>Storage</b></a><a class="pn pn-next" href="processing.html"><span>Next</span><b>Processing</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#the-awkward-truth-about-sources">The awkward truth about sources</a></li><li class="toc-l2"><a href="#pattern-1-full-snapshot">Pattern 1 — Full snapshot</a></li><li class="toc-l2"><a href="#pattern-2-incremental-with-a-high-water-mark">Pattern 2 — Incremental with a high-water mark</a></li><li class="toc-l2"><a href="#pattern-3-change-data-capture">Pattern 3 — Change Data Capture</a></li><li class="toc-l2"><a href="#pattern-4-event-streams">Pattern 4 — Event streams</a></li><li class="toc-l2"><a href="#pattern-5-files-and-third-party-apis">Pattern 5 — Files and third-party APIs</a></li><li class="toc-l2"><a href="#choosing-in-practice">Choosing, in practice</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

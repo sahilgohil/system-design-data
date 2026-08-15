@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en" data-page="modeling">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelling the data · System Design for Data Engineering</title>
+<meta name="description" content="Layered architectures, dimensional modelling, grain, slowly changing dimensions and incremental patterns.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html" class="active" aria-current="page">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">The hard parts</p>
+      <h1>Modelling the data</h1>
+      <p class="lede">Storage decides what a query costs. Modelling decides whether anyone can write the query at all — and whether two people asking the same question get the same answer.</p>
+      <h2 id="the-problem-modelling-solves" class="anchored"><a class="anchor" href="#the-problem-modelling-solves" aria-label="Link to this section">#</a>The problem modelling solves<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-problem-modelling-solves"><span>Done</span></label></h2>
+
+<p>A company has 400 tables copied from six systems. An analyst wants monthly revenue by customer segment. To get it they must know which of the three <code>orders</code> tables is authoritative, that cancelled orders have <code>status = 9</code>, that the EU subsidiary reports in euros, and that test accounts must be excluded using a rule someone explained in Slack in 2024.</p>
+
+<p>They work it out and build a dashboard. Someone else does the same thing next month and gets a different number, because they excluded test accounts differently.</p>
+
+<p>Modelling is the discipline of doing that work <em>once</em>, in one place, so the answer is consistent and the knowledge is in code rather than in people's heads.</p>
+
+<h2 id="layers" class="anchored"><a class="anchor" href="#layers" aria-label="Link to this section">#</a>Layers<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="layers"><span>Done</span></label></h2>
+
+<p>Every mature platform organises tables into layers. The names differ — bronze/silver/gold, raw/staging/marts, landing/base/reporting — and the idea is identical.</p>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 297" role="img" class="dg">
+  <title>The three layers, top to bottom</title><desc>Marts read from staging, staging reads from raw, raw is never edited</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">The three layers, top to bottom</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-accent" x="16" y="16" width="502" height="67.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="41.3" font-size="15" text-anchor="start" font-weight="500">Marts · gold</text>
+  <text class="dg-sub" x="34" y="63.0" font-size="12.5" text-anchor="start">Star schemas, metrics, business names</text>
+  <text class="dg-sub" x="534" y="33.0" font-size="12.5" text-anchor="start">What people actually query.</text>
+  <text class="dg-sub" x="534" y="51.1" font-size="12.5" text-anchor="start">Business logic lives here,</text>
+  <text class="dg-sub" x="534" y="69.3" font-size="12.5" text-anchor="start">once.</text>
+  <rect class="dg-box" x="16" y="95.875" width="502" height="67.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="121.2" font-size="15" text-anchor="start" font-weight="500">Staging · silver</text>
+  <text class="dg-sub" x="34" y="142.9" font-size="12.5" text-anchor="start">Typed, deduplicated, one row per real thing</text>
+  <text class="dg-sub" x="534" y="121.9" font-size="12.5" text-anchor="start">Reads only from raw. No</text>
+  <text class="dg-sub" x="534" y="140.1" font-size="12.5" text-anchor="start">business opinions yet.</text>
+  <rect class="dg-box" x="16" y="175.75" width="502" height="67.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="201.1" font-size="15" text-anchor="start" font-weight="500">Raw · bronze</text>
+  <text class="dg-sub" x="34" y="222.8" font-size="12.5" text-anchor="start">Exactly what the source said, append-only</text>
+  <text class="dg-sub" x="534" y="201.8" font-size="12.5" text-anchor="start">Never edited. This is your</text>
+  <text class="dg-sub" x="534" y="219.9" font-size="12.5" text-anchor="start">ability to rebuild everything.</text>
+  </g>
+</svg>
+  <figcaption>Each layer reads only from the one above it. That single restriction is what stops business logic from being reinvented in six places.</figcaption>
+</figure>
+
+<p>Three rules make this work:</p>
+
+<ul>
+  <li><strong>Raw is sacred.</strong> Never transform it in place. It is your ability to rebuild everything, and your evidence of what the source actually said.</li>
+  <li><strong>Each layer reads only from the layer above.</strong> No mart querying raw directly — that is how logic gets duplicated and then diverges.</li>
+  <li><strong>Business logic lives in one layer.</strong> If "active customer" is defined in four marts, you will get four numbers in four dashboards, and a meeting about which one is right that produces no useful outcome.</li>
+</ul>
+
+<h2 id="dimensional-modelling" class="anchored"><a class="anchor" href="#dimensional-modelling" aria-label="Link to this section">#</a>Dimensional modelling<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="dimensional-modelling"><span>Done</span></label></h2>
+
+<p>The dominant way to model analytics data, from Ralph Kimball. Two kinds of table:</p>
+
+<ul>
+  <li><strong>Facts</strong> — things that happened. Long and narrow: mostly numbers and foreign keys. <code>fct_orders</code>, <code>fct_page_views</code>.</li>
+  <li><strong>Dimensions</strong> — the context around those things. Short and wide: mostly descriptive text. <code>dim_customer</code>, <code>dim_product</code>, <code>dim_date</code>.</li>
+</ul>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" role="img" class="dg">
+  <title>A star schema</title>
+  <desc>One fact table in the centre holding measures and foreign keys, joined outward to four dimension tables holding descriptive context</desc>
+
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">A star schema: one fact, four dimensions</text>
+
+  <g transform="translate(0 20)">
+    <!-- join lines, drawn first so boxes sit on top -->
+    <line class="dg-line" x1="380" y1="180" x2="150" y2="90"/>
+    <line class="dg-line" x1="380" y1="180" x2="610" y2="90"/>
+    <line class="dg-line" x1="380" y1="200" x2="150" y2="290"/>
+    <line class="dg-line" x1="380" y1="200" x2="610" y2="290"/>
+
+    <!-- fact table, centre -->
+    <rect class="dg-box dg-box-accent" x="270" y="140" width="220" height="100" rx="10" ry="10"/>
+    <text class="dg-label" x="380" y="167" font-size="15" text-anchor="middle" font-weight="500">fct_order_items</text>
+    <text class="dg-sub" x="380" y="188" font-size="12.5" text-anchor="middle">grain: one row per line item</text>
+    <text class="dg-sub" x="380" y="207" font-size="12.5" text-anchor="middle">measures: quantity, revenue</text>
+    <text class="dg-sub" x="380" y="226" font-size="12.5" text-anchor="middle">keys: customer, product, date</text>
+
+    <!-- dimensions -->
+    <rect class="dg-box" x="30" y="52" width="200" height="62" rx="10" ry="10"/>
+    <text class="dg-label" x="130" y="79" font-size="15" text-anchor="middle" font-weight="500">dim_customer</text>
+    <text class="dg-sub" x="130" y="99" font-size="12.5" text-anchor="middle">segment, country, signup date</text>
+
+    <rect class="dg-box" x="510" y="52" width="200" height="62" rx="10" ry="10"/>
+    <text class="dg-label" x="610" y="79" font-size="15" text-anchor="middle" font-weight="500">dim_product</text>
+    <text class="dg-sub" x="610" y="99" font-size="12.5" text-anchor="middle">name, category, brand</text>
+
+    <rect class="dg-box" x="30" y="266" width="200" height="62" rx="10" ry="10"/>
+    <text class="dg-label" x="130" y="293" font-size="15" text-anchor="middle" font-weight="500">dim_date</text>
+    <text class="dg-sub" x="130" y="313" font-size="12.5" text-anchor="middle">week, quarter, is_holiday</text>
+
+    <rect class="dg-box" x="510" y="266" width="200" height="62" rx="10" ry="10"/>
+    <text class="dg-label" x="610" y="293" font-size="15" text-anchor="middle" font-weight="500">dim_store</text>
+    <text class="dg-sub" x="610" y="313" font-size="12.5" text-anchor="middle">region, channel, opened</text>
+
+    <text class="dg-sub" x="380" y="360" font-size="12.5" text-anchor="middle">Every question is one join hop from the fact table.</text>
+  </g>
+</svg>
+  <figcaption>The star shape is the point: every dimension is one join from the fact, so any combination of filters is a simple, fast query.</figcaption>
+</figure>
+
+<p>It has survived thirty years of fashion for two reasons. It is fast, because the join graph is one hop deep. And non-engineers can understand it — an analyst can look at a star schema and work out how to answer their question without asking you, which is worth more than any performance benefit.</p>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">Grain is the concept to get right</span>
+    <p>The <strong>grain</strong> is what exactly one row of a fact table represents. Not "orders" — <em>"one row per order line item"</em>. Declare it explicitly, in writing, before you write any SQL.</p>
+    <p>Almost every dimensional modelling disaster traces back to a fact table with an ambiguous or mixed grain. If some rows are orders and some are line items, then summing <code>revenue</code> double-counts, and the error is invisible until someone reconciles against finance.</p>
+    <p>The test: can you state the grain in one sentence beginning "one row per…"? If not, the table is not ready to be built.</p>
+  </div>
+</div>
+
+<h3 id="a-note-on-normalisation" class="anchored"><a class="anchor" href="#a-note-on-normalisation" aria-label="Link to this section">#</a>A note on normalisation</h3>
+
+<p>OLTP databases normalise — third normal form, no duplicated values — to avoid update anomalies, because they are written to constantly. Analytics tables are written once and read thousands of times, so the trade-off inverts: <strong>analytics deliberately denormalises.</strong> Storage is cheap, joins are expensive, and an analyst reading <code>country_name</code> directly rather than joining three tables to find it is a genuine productivity gain.</p>
+
+<p>If you come from application development, this will feel wrong for about a month.</p>
+
+<h2 id="slowly-changing-dimensions" class="anchored"><a class="anchor" href="#slowly-changing-dimensions" aria-label="Link to this section">#</a>Slowly changing dimensions<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="slowly-changing-dimensions"><span>Done</span></label></h2>
+
+<p>A customer moves from Berlin to Munich. Last year's orders — were they placed by a Berlin customer or a Munich one?</p>
+
+<p>Both answers are defensible, and you must choose deliberately.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Type</th><th>What it does</th><th>Result</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Type 1</strong></td><td>Overwrite the old value</td><td>Only the current truth exists; history is rewritten</td><td>Correcting typos, fields where history is meaningless</td></tr>
+    <tr><td><strong>Type 2</strong></td><td>Add a new row with validity dates</td><td>Both versions exist; facts join to the version that was current at the time</td><td>Anything where historical reporting must reflect the world as it was</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>A Type 2 dimension looks like this:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>customer_key</th><th>customer_id</th><th>city</th><th>valid_from</th><th>valid_to</th><th>is_current</th></tr></thead>
+  <tbody>
+    <tr><td>101</td><td>C-77</td><td>Berlin</td><td>2024-01-01</td><td>2025-06-30</td><td>false</td></tr>
+    <tr><td>102</td><td>C-77</td><td>Munich</td><td>2025-07-01</td><td>9999-12-31</td><td>true</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Note the two different keys. <code>customer_id</code> is the business key — the real customer. <code>customer_key</code> is a surrogate key identifying <em>this version</em> of them. Facts join on the surrogate key, which is what makes a 2024 order correctly attribute to Berlin. This is what people mean by <strong>point-in-time correct</strong>, and it matters enormously for both historical reporting and machine learning training data.</p>
+
+<p>Type 2 costs complexity, so apply it only where history genuinely matters. Ask the business rather than guessing — and be aware that "do you need to see what this looked like last year?" gets a more accurate answer than "do you want Type 2?".</p>
+
+<h2 id="incremental-patterns" class="anchored"><a class="anchor" href="#incremental-patterns" aria-label="Link to this section">#</a>Incremental patterns<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="incremental-patterns"><span>Done</span></label></h2>
+
+<p>How you update a table when new data arrives. The choice interacts directly with idempotency from <a href="reliability.html">Reliability</a>.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Pattern</th><th>How</th><th>Use when</th><th>Idempotent?</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Full refresh</strong></td><td>Rebuild the whole table</td><td>Small tables, complex logic, correctness over cost</td><td>Yes, inherently</td></tr>
+    <tr><td><strong>Append</strong></td><td>Insert new rows only</td><td>Immutable events that never change</td><td>No — needs a dedup key</td></tr>
+    <tr><td><strong>Insert-overwrite</strong></td><td>Replace whole partitions</td><td>Records within a period can change</td><td>Yes</td></tr>
+    <tr><td><strong>Merge / upsert</strong></td><td>Match on key, update or insert</td><td>Mutable records with a reliable key (CDC output)</td><td>Yes</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">Keep the ability to rebuild</span>
+    <p>Whatever incremental pattern you adopt, make sure a full rebuild is still possible and occasionally tested. Incremental logic drifts — a bug shipped three months ago leaves a permanent dent in history that only a rebuild will remove.</p>
+    <p>Some teams schedule a full rebuild monthly for exactly this reason. It costs one expensive night and buys certainty that incremental output still matches what the logic says it should be.</p>
+  </div>
+</div>
+
+<h2 id="lambda-and-kappa-briefly" class="anchored"><a class="anchor" href="#lambda-and-kappa-briefly" aria-label="Link to this section">#</a>Lambda and Kappa, briefly<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="lambda-and-kappa-briefly"><span>Done</span></label></h2>
+
+<p>Two named architectures you will hear about, worth recognising:</p>
+
+<ul>
+  <li><strong>Lambda</strong> — run a batch layer (accurate, slow) and a speed layer (fast, approximate) in parallel and merge them at query time. Its flaw is famous: <em>two implementations of the same business logic</em>, which inevitably drift apart.</li>
+  <li><strong>Kappa</strong> — one streaming pipeline handles everything; reprocessing means replaying the log from the start. One codebase, but it demands long log retention and real streaming maturity.</li>
+</ul>
+
+<p>Most teams land somewhere pragmatic: batch for the bulk of analytics, one or two streaming paths where the business case is clear. Knowing the names and Lambda's dual-implementation flaw is enough — and note the nuance in <a href="examples.html">Worked examples</a>, where a Lambda-shaped design is acceptable precisely because the two paths compute <em>different</em> things and so cannot drift.</p>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<ul>
+  <li>Explain what each layer does and why marts must not read from raw</li>
+  <li>Sort a list of tables into facts and dimensions, and justify each</li>
+  <li>State the grain of a fact table in one sentence, and explain what goes wrong when it is mixed</li>
+  <li>Explain why analytics denormalises when application databases normalise</li>
+  <li>Choose between SCD Type 1 and Type 2 for a given field, based on a question you would ask the business</li>
+  <li>Explain what a surrogate key does in a Type 2 dimension that a business key cannot</li>
+  <li>Pick an incremental pattern for a table and say whether it is idempotent as written</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="quality.html"><span>Previous</span><b>Quality</b></a><a class="pn pn-next" href="cost.html"><span>Next</span><b>Cost &amp; governance</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#the-problem-modelling-solves">The problem modelling solves</a></li><li class="toc-l2"><a href="#layers">Layers</a></li><li class="toc-l2"><a href="#dimensional-modelling">Dimensional modelling</a></li><li class="toc-l3"><a href="#a-note-on-normalisation">A note on normalisation</a></li><li class="toc-l2"><a href="#slowly-changing-dimensions">Slowly changing dimensions</a></li><li class="toc-l2"><a href="#incremental-patterns">Incremental patterns</a></li><li class="toc-l2"><a href="#lambda-and-kappa-briefly">Lambda and Kappa, briefly</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

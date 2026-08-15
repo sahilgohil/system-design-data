@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en" data-page="reference">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · System Design for Data Engineering</title>
+<meta name="description" content="Glossary, rules of thumb worth memorising, ten principles, and where to read next.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html" class="active" aria-current="page">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">Keep going</p>
+      <h1>Reference</h1>
+      <p class="lede">The lookup page. Terms you will hear in meetings, numbers worth carrying in your head, and the four books that matter.</p>
+      <h2 id="numbers-worth-memorising" class="anchored"><a class="anchor" href="#numbers-worth-memorising" aria-label="Link to this section">#</a>Numbers worth memorising<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="numbers-worth-memorising"><span>Done</span></label></h2>
+
+<p>Having a figure to hand is what lets you say "that will not work" in a design meeting rather than "hmm, maybe".</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Rule</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Target Parquet file size</td><td>128 MB – 1 GB</td></tr>
+    <tr><td>Target partition size</td><td>100 MB – 1 GB</td></tr>
+    <tr><td>Typical CSV → Parquet size reduction</td><td>5–10×</td></tr>
+    <tr><td>Typical columnar compression on a single column</td><td>5–20×</td></tr>
+    <tr><td>Object storage cost</td><td>~$20–25 per TB per month</td></tr>
+    <tr><td>Relative cost of streaming versus batch engineering</td><td>Roughly 5–10× the effort</td></tr>
+    <tr><td>"Just use a warehouse" threshold</td><td>Comfortably under ~10 TB</td></tr>
+    <tr><td>"One machine is fine" threshold</td><td>Far higher than beginners assume — DuckDB and Polars handle hundreds of GB on a laptop</td></tr>
+    <tr><td>Default partition key</td><td>Date</td></tr>
+    <tr><td>Default freshness</td><td>Daily. Justify hourly. Prove the need for streaming</td></tr>
+    <tr><td>Times a source column will change without warning</td><td>More than zero</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="ten-principles-condensed" class="anchored"><a class="anchor" href="#ten-principles-condensed" aria-label="Link to this section">#</a>Ten principles, condensed<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="ten-principles-condensed"><span>Done</span></label></h2>
+
+<ol>
+  <li>Keep raw data forever and never edit it.</li>
+  <li>Make every write idempotent.</li>
+  <li>Parameterise by logical date, never <code>CURRENT_DATE</code>.</li>
+  <li>Partition by what you filter on.</li>
+  <li>Prefer batch until a named decision forces otherwise.</li>
+  <li>Test freshness, volume and uniqueness on everything that matters.</li>
+  <li>Define business logic exactly once.</li>
+  <li>Declare the grain before writing the query.</li>
+  <li>Store both event time and ingestion time.</li>
+  <li>Choose the simplest thing that meets the stated <em>numeric</em> requirement — then write down the trade-off you made.</li>
+</ol>
+
+<h2 id="glossary" class="anchored"><a class="anchor" href="#glossary" aria-label="Link to this section">#</a>Glossary<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="glossary"><span>Done</span></label></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><strong>ACID</strong></td><td>Atomicity, Consistency, Isolation, Durability — transaction guarantees. Table formats bring them to object storage</td></tr>
+    <tr><td><strong>Backfill</strong></td><td>Rerunning a pipeline over a past date range to repopulate history</td></tr>
+    <tr><td><strong>CDC</strong></td><td>Change Data Capture — reading a database's replication log to stream every insert, update and delete</td></tr>
+    <tr><td><strong>Clustering</strong></td><td>Physically ordering rows within files so file-level statistics become selective. Also called sorting or Z-ordering</td></tr>
+    <tr><td><strong>Compaction</strong></td><td>Rewriting many small files into fewer large ones</td></tr>
+    <tr><td><strong>Data contract</strong></td><td>An agreement between producer and consumer on schema, semantics, freshness and how changes happen</td></tr>
+    <tr><td><strong>DAG</strong></td><td>Directed Acyclic Graph — how orchestrators model task dependencies</td></tr>
+    <tr><td><strong>Denormalisation</strong></td><td>Deliberately duplicating data to avoid joins. Standard practice in analytics</td></tr>
+    <tr><td><strong>Dimension</strong></td><td>A table of descriptive context — who, what, where</td></tr>
+    <tr><td><strong>ELT / ETL</strong></td><td>Load-then-transform versus transform-then-load</td></tr>
+    <tr><td><strong>Event time</strong></td><td>When something actually happened, as opposed to when you received it</td></tr>
+    <tr><td><strong>Fact</strong></td><td>A table of things that happened, holding measures and foreign keys</td></tr>
+    <tr><td><strong>Grain</strong></td><td>What exactly one row of a table represents</td></tr>
+    <tr><td><strong>High-water mark</strong></td><td>The largest timestamp or ID seen so far, used to pull only newer rows</td></tr>
+    <tr><td><strong>Idempotent</strong></td><td>Running it twice gives the same result as running it once</td></tr>
+    <tr><td><strong>Lakehouse</strong></td><td>Warehouse-like semantics — ACID, schema, time travel — over open files in object storage</td></tr>
+    <tr><td><strong>Lineage</strong></td><td>The dependency graph of which datasets feed which</td></tr>
+    <tr><td><strong>Logical date</strong></td><td>The period a pipeline run is processing, passed in as a parameter</td></tr>
+    <tr><td><strong>Materialisation</strong></td><td>How a model is persisted: view, table, or incremental</td></tr>
+    <tr><td><strong>OLAP / OLTP</strong></td><td>Analytical versus transactional workloads</td></tr>
+    <tr><td><strong>Partition</strong></td><td>A physical subdivision of a table, usually by date. Also a unit of parallel work in distributed engines</td></tr>
+    <tr><td><strong>Predicate pushdown</strong></td><td>Pushing filters into the storage layer so unneeded data is never read</td></tr>
+    <tr><td><strong>Restatement</strong></td><td>Historical numbers changing because late or corrected data arrived</td></tr>
+    <tr><td><strong>SCD</strong></td><td>Slowly Changing Dimension. Type 1 overwrites, Type 2 versions</td></tr>
+    <tr><td><strong>Schema evolution</strong></td><td>Changing a schema over time without breaking readers</td></tr>
+    <tr><td><strong>Shuffle</strong></td><td>Network movement of data between nodes. Usually the expensive step</td></tr>
+    <tr><td><strong>Skew</strong></td><td>Uneven data distribution causing one task to dominate runtime</td></tr>
+    <tr><td><strong>Star schema</strong></td><td>One fact table joined to surrounding dimensions</td></tr>
+    <tr><td><strong>Surrogate key</strong></td><td>A generated key identifying one <em>version</em> of a record, as opposed to the business key identifying the thing itself</td></tr>
+    <tr><td><strong>Table format</strong></td><td>Iceberg, Delta, Hudi — the metadata layer that turns files into a table</td></tr>
+    <tr><td><strong>Upsert / MERGE</strong></td><td>Insert if new, update if existing, keyed on a business key</td></tr>
+    <tr><td><strong>Watermark</strong></td><td>An engine's estimate of how complete event-time data is, which lets windows close</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="four-books-in-reading-order" class="anchored"><a class="anchor" href="#four-books-in-reading-order" aria-label="Link to this section">#</a>Four books, in reading order<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="four-books-in-reading-order"><span>Done</span></label></h2>
+
+<div class="cards">
+  <div class="card">
+    <span class="chip green">Read first</span>
+    <h3 id="fundamentals-of-data-engineering" data-no-toc class="anchored"><a class="anchor" href="#fundamentals-of-data-engineering" aria-label="Link to this section">#</a>Fundamentals of Data Engineering</h3>
+    <p>Reis &amp; Housley. The best single overview of the field, and the closest thing to an expanded version of this course. Start here.</p>
+  </div>
+  <div class="card">
+    <span class="chip">Reference</span>
+    <h3 id="the-data-warehouse-toolkit" data-no-toc class="anchored"><a class="anchor" href="#the-data-warehouse-toolkit" aria-label="Link to this section">#</a>The Data Warehouse Toolkit</h3>
+    <p>Kimball &amp; Ross. The canonical text on dimensional modelling. Dense — read the first four chapters properly, then treat it as a lookup.</p>
+  </div>
+  <div class="card">
+    <span class="chip amber">After you build</span>
+    <h3 id="designing-data-intensive-applications" data-no-toc class="anchored"><a class="anchor" href="#designing-data-intensive-applications" aria-label="Link to this section">#</a>Designing Data-Intensive Applications</h3>
+    <p>Kleppmann. The deep foundations: replication, partitioning, consistency, consensus, stream processing. Harder, and worth it — but read it once you have shipped something.</p>
+  </div>
+  <div class="card">
+    <span class="chip">If you go deep</span>
+    <h3 id="streaming-systems" data-no-toc class="anchored"><a class="anchor" href="#streaming-systems" aria-label="Link to this section">#</a>Streaming Systems</h3>
+    <p>Akidau, Chernyak &amp; Lax. The clearest treatment of event time and watermarks anywhere. Only when streaming becomes your problem.</p>
+  </div>
+</div>
+
+<h2 id="things-to-practise-on" class="anchored"><a class="anchor" href="#things-to-practise-on" aria-label="Link to this section">#</a>Things to practise on<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="things-to-practise-on"><span>Done</span></label></h2>
+
+<ul>
+  <li><strong>DuckDB</strong> — the best local sandbox for columnar analytics. No account, no cluster, no setup.</li>
+  <li><strong>Public datasets</strong> — NYC TLC trip records, GH Archive, Wikipedia pageviews, or any large Kaggle set.</li>
+  <li><strong>Documentation worth reading directly</strong> — dbt's guides on incremental models and testing; the Iceberg or Delta specification overview; Kafka's design documentation. Primary sources are consistently better than blog summaries in this field, because the summaries all copy each other.</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="path.html"><span>Previous</span><b>Practice path</b></a><a class="pn pn-next" href="quiz.html"><span>Next</span><b>Practice quiz</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#numbers-worth-memorising">Numbers worth memorising</a></li><li class="toc-l2"><a href="#ten-principles-condensed">Ten principles, condensed</a></li><li class="toc-l2"><a href="#glossary">Glossary</a></li><li class="toc-l2"><a href="#four-books-in-reading-order">Four books, in reading order</a></li><li class="toc-l2"><a href="#things-to-practise-on">Things to practise on</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

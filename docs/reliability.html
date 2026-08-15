@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en" data-page="reliability">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reliability and correctness · System Design for Data Engineering</title>
+<meta name="description" content="Delivery semantics, the three idempotency techniques, and how to handle data that arrives after you already reported on it.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html" class="active" aria-current="page">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">The hard parts</p>
+      <h1>Reliability and correctness</h1>
+      <p class="lede">Everything up to here describes systems that work. This lesson is about what makes them keep working — and it is where junior and senior designs visibly diverge.</p>
+      <h2 id="assume-every-step-fails-halfway" class="anchored"><a class="anchor" href="#assume-every-step-fails-halfway" aria-label="Link to this section">#</a>Assume every step fails halfway<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="assume-every-step-fails-halfway"><span>Done</span></label></h2>
+
+<p>A job writes 60% of its output and the machine dies. A network call succeeds but the acknowledgement is lost, so the sender retries something that already happened. A source restates last week's numbers without telling anyone.</p>
+
+<p>None of these are edge cases. At any real volume they happen weekly. The question is not whether your pipeline will be interrupted mid-write — it will — but what state it leaves behind when it is.</p>
+
+<h2 id="the-three-delivery-guarantees" class="anchored"><a class="anchor" href="#the-three-delivery-guarantees" aria-label="Link to this section">#</a>The three delivery guarantees<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-three-delivery-guarantees"><span>Done</span></label></h2>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 318" role="img" class="dg">
+  <title>Three delivery guarantees</title><desc>At-most-once loses data, at-least-once duplicates, exactly-once is achieved by making writes idempotent</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Three delivery guarantees</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-muted" x="16" y="16" width="229.33333333333334" height="248.2" rx="10" ry="10"/>
+  <text class="dg-label" x="130.66666666666669" y="49.1" font-size="16" text-anchor="middle" font-weight="500">At-most-once</text>
+  <circle class="dg-dot" cx="36" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="48" y="81.5" font-size="12.5" text-anchor="start">Rule: send it, never retry</text>
+  <circle class="dg-dot" cx="36" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="48" y="108.6" font-size="12.5" text-anchor="start">On failure: the record is</text>
+  <text class="dg-sub" x="48" y="126.7" font-size="12.5" text-anchor="start">gone</text>
+  <circle class="dg-dot" cx="36" cy="151.1" r="2.5"/>
+  <text class="dg-sub" x="48" y="153.8" font-size="12.5" text-anchor="start">Risk: silent data loss</text>
+  <circle class="dg-dot" cx="36" cy="178.2" r="2.5"/>
+  <text class="dg-sub" x="48" y="180.9" font-size="12.5" text-anchor="start">Almost never acceptable</text>
+  <rect class="dg-box dg-box-accent" x="265.33333333333337" y="16" width="229.33333333333334" height="248.2" rx="10" ry="10"/>
+  <text class="dg-label" x="380.00000000000006" y="49.1" font-size="16" text-anchor="middle" font-weight="500">At-least-once</text>
+  <circle class="dg-dot" cx="285.33333333333337" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="297.33333333333337" y="81.5" font-size="12.5" text-anchor="start">Rule: retry until</text>
+  <text class="dg-sub" x="297.33333333333337" y="99.6" font-size="12.5" text-anchor="start">acknowledged</text>
+  <circle class="dg-dot" cx="285.33333333333337" cy="124.0" r="2.5"/>
+  <text class="dg-sub" x="297.33333333333337" y="126.7" font-size="12.5" text-anchor="start">On failure: the record</text>
+  <text class="dg-sub" x="297.33333333333337" y="144.8" font-size="12.5" text-anchor="start">arrives twice</text>
+  <circle class="dg-dot" cx="285.33333333333337" cy="169.2" r="2.5"/>
+  <text class="dg-sub" x="297.33333333333337" y="171.9" font-size="12.5" text-anchor="start">Risk: duplicates</text>
+  <circle class="dg-dot" cx="285.33333333333337" cy="196.3" r="2.5"/>
+  <text class="dg-sub" x="297.33333333333337" y="199.1" font-size="12.5" text-anchor="start">What real systems actually</text>
+  <text class="dg-sub" x="297.33333333333337" y="217.2" font-size="12.5" text-anchor="start">give you</text>
+  <rect class="dg-box dg-box-muted" x="514.6666666666667" y="16" width="229.33333333333334" height="248.2" rx="10" ry="10"/>
+  <text class="dg-label" x="629.3333333333334" y="49.1" font-size="16" text-anchor="middle" font-weight="500">Effectively-once</text>
+  <circle class="dg-dot" cx="534.6666666666667" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="546.6666666666667" y="81.5" font-size="12.5" text-anchor="start">Rule: at-least-once plus</text>
+  <text class="dg-sub" x="546.6666666666667" y="99.6" font-size="12.5" text-anchor="start">an idempotent write</text>
+  <circle class="dg-dot" cx="534.6666666666667" cy="124.0" r="2.5"/>
+  <text class="dg-sub" x="546.6666666666667" y="126.7" font-size="12.5" text-anchor="start">On failure: the retry</text>
+  <text class="dg-sub" x="546.6666666666667" y="144.8" font-size="12.5" text-anchor="start">overwrites, it does not</text>
+  <text class="dg-sub" x="546.6666666666667" y="162.9" font-size="12.5" text-anchor="start">add</text>
+  <circle class="dg-dot" cx="534.6666666666667" cy="187.3" r="2.5"/>
+  <text class="dg-sub" x="546.6666666666667" y="190.1" font-size="12.5" text-anchor="start">Risk: needs a stable key</text>
+  <text class="dg-sub" x="546.6666666666667" y="208.2" font-size="12.5" text-anchor="start">or partition</text>
+  <circle class="dg-dot" cx="534.6666666666667" cy="232.6" r="2.5"/>
+  <text class="dg-sub" x="546.6666666666667" y="235.3" font-size="12.5" text-anchor="start">What you build on top</text>
+  </g>
+</svg>
+  <figcaption>Real systems give you at-least-once. Exactly-once is not something you receive — it is something you build, by making the write itself safe to repeat.</figcaption>
+</figure>
+
+<p>The reasoning is worth walking through, because it explains why "exactly-once" is such a slippery marketing term.</p>
+
+<p>A sender transmits a record and waits for an acknowledgement. The acknowledgement does not arrive. Two possibilities: the record never landed, or it landed and the <em>acknowledgement</em> was lost. The sender cannot tell these apart. It must either retry — risking a duplicate — or not — risking loss. There is no third option available at the transport layer, however sophisticated.</p>
+
+<p>So real systems choose at-least-once and accept duplicates. You then make the duplicates harmless by ensuring that <strong>writing the same record twice has the same effect as writing it once.</strong> That is idempotency, and it is why practitioners often say "effectively-once" instead.</p>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">"Exactly-once" on a product page</span>
+    <p>When a tool advertises exactly-once, it almost always means exactly-once <em>within its own boundaries</em> — its internal state and its own sink, using transactions it controls end to end.</p>
+    <p>The moment your pipeline writes to something that tool does not control — an external API, a table another job also writes to, a file in a bucket — the guarantee ends at that boundary. It is a real feature; it is just narrower than the name suggests. Read it as "we handle our part", and handle yours.</p>
+  </div>
+</div>
+
+<h2 id="three-ways-to-make-a-write-idempotent" class="anchored"><a class="anchor" href="#three-ways-to-make-a-write-idempotent" aria-label="Link to this section">#</a>Three ways to make a write idempotent<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="three-ways-to-make-a-write-idempotent"><span>Done</span></label></h2>
+
+<p>In rough order of preference.</p>
+
+<h3 id="1-overwrite-by-partition" class="anchored"><a class="anchor" href="#1-overwrite-by-partition" aria-label="Link to this section">#</a>1. Overwrite by partition</h3>
+
+<p>Replace the entire logical partition you are processing, rather than adding to it.</p>
+
+<pre><code>DELETE FROM daily_sales WHERE dt = '2026-03-01';
+INSERT INTO daily_sales SELECT ... WHERE dt = '2026-03-01';</code></pre>
+
+<p>Simple, robust, and requires no unique key at all. It is a large part of why date partitioning is so universal — partitioning is not only a performance decision, it is a correctness one.</p>
+
+<h3 id="2-merge-on-a-stable-key" class="anchored"><a class="anchor" href="#2-merge-on-a-stable-key" aria-label="Link to this section">#</a>2. Merge on a stable key</h3>
+
+<pre><code>MERGE INTO orders t USING staged s ON t.order_id = s.order_id
+WHEN MATCHED THEN UPDATE SET ...
+WHEN NOT MATCHED THEN INSERT ...;</code></pre>
+
+<p>Handles updates as well as duplicates, which overwrite-by-partition does not when a record moves between partitions. It requires a genuine business key — <code>order_id</code>, not a row number.</p>
+
+<h3 id="3-deduplicate-on-read-or-in-staging" class="anchored"><a class="anchor" href="#3-deduplicate-on-read-or-in-staging" aria-label="Link to this section">#</a>3. Deduplicate on read or in staging</h3>
+
+<pre><code>SELECT * FROM (
+  SELECT *, ROW_NUMBER() OVER (
+    PARTITION BY event_id ORDER BY ingested_at DESC) AS rn
+  FROM raw_events
+) WHERE rn = 1</code></pre>
+
+<p>Keeps every copy and picks a winner. Useful when raw must stay append-only, at the cost of doing the work on every read.</p>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">Ask for a unique key on day one</span>
+    <p>All three techniques depend on being able to identify the same record twice. Ask every source for a stable unique identifier at the start of the project — retrofitting one is painful and sometimes impossible.</p>
+    <p>If a source genuinely has none, synthesise a <strong>deterministic hash</strong> of the fields that define uniqueness. Never a random UUID generated at ingestion time: it differs on every rerun, which defeats the entire purpose while looking like it solved the problem.</p>
+  </div>
+</div>
+
+<h2 id="late-and-out-of-order-data" class="anchored"><a class="anchor" href="#late-and-out-of-order-data" aria-label="Link to this section">#</a>Late and out-of-order data<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="late-and-out-of-order-data"><span>Done</span></label></h2>
+
+<p>Two clocks exist, and conflating them produces numbers that are wrong in ways nobody notices.</p>
+
+<ul>
+  <li><strong>Event time</strong> — when the thing actually happened.</li>
+  <li><strong>Processing time</strong> — when your system saw it.</li>
+</ul>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 206" role="img" class="dg">
+  <title>A phone goes offline on Monday night</title><desc>An event happens Monday, the device is offline until Thursday, and Monday's total was already written on Tuesday</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">A phone goes offline on Monday night</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-accent" x="16" y="46" width="128.36363636363637" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="80.18181818181819" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Mon 23:58</text>
+  <text class="dg-sub" x="80.18181818181819" y="110.3" font-size="12.5" text-anchor="middle">purchase happens ·</text>
+  <text class="dg-sub" x="80.18181818181819" y="128.4" font-size="12.5" text-anchor="middle">event_time</text>
+  <rect class="dg-box dg-box-muted" x="148.36363636363637" y="46" width="260.72727272727275" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="278.72727272727275" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Tue-Wed</text>
+  <text class="dg-sub" x="278.72727272727275" y="110.3" font-size="12.5" text-anchor="middle">device offline · nothing arrives</text>
+  <rect class="dg-box" x="413.0909090909091" y="46" width="194.54545454545453" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="510.3636363636364" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Tue 02:00</text>
+  <text class="dg-sub" x="510.3636363636364" y="110.3" font-size="12.5" text-anchor="middle">Monday's total is written ·</text>
+  <text class="dg-sub" x="510.3636363636364" y="128.4" font-size="12.5" text-anchor="middle">already wrong</text>
+  <rect class="dg-box" x="611.6363636363636" y="46" width="132.36363636363637" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="675.8181818181818" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Thu 09:14</text>
+  <text class="dg-sub" x="675.8181818181818" y="110.3" font-size="12.5" text-anchor="middle">event finally</text>
+  <text class="dg-sub" x="675.8181818181818" y="128.4" font-size="12.5" text-anchor="middle">arrives ·</text>
+  <text class="dg-sub" x="675.8181818181818" y="146.5" font-size="12.5" text-anchor="middle">ingested_at</text>
+  <text class="dg-sub" x="16" y="30.3" font-size="12.5" text-anchor="start">Time →</text>
+  </g>
+</svg>
+  <figcaption>Monday's total was written on Tuesday and was wrong from the moment it was written. Nothing failed, nothing alerted, and the number looks perfectly reasonable.</figcaption>
+</figure>
+
+<p>This is not an exotic scenario. Mobile apps buffer events offline. Vendors restate attribution data for three days. Payment providers attach refunds to charges from weeks ago. Any system with humans or devices at the edge has late data, always.</p>
+
+<h3 id="handling-it-in-batch-the-lookback-window" class="anchored"><a class="anchor" href="#handling-it-in-batch-the-lookback-window" aria-label="Link to this section">#</a>Handling it in batch: the lookback window</h3>
+
+<p>Do not reprocess only yesterday. Reprocess the last N days on every run, where N comes from the <em>observed</em> lateness distribution rather than a guess.</p>
+
+<p>Measure it: for a sample of records, compute <code>ingested_at - event_time</code> and look at the p99 and p99.9. If 99.9% of events arrive within four days, a seven-day lookback covers you with margin. Costs a little compute every night; prevents a class of silently wrong numbers.</p>
+
+<p>This is only safe if the write is idempotent — reprocessing seven days with an <code>INSERT</code> would give you seven copies. The two ideas on this page depend on each other, which is why they share a lesson.</p>
+
+<h3 id="handling-it-in-streaming-watermarks" class="anchored"><a class="anchor" href="#handling-it-in-streaming-watermarks" aria-label="Link to this section">#</a>Handling it in streaming: watermarks</h3>
+
+<p>A watermark is the engine's assertion that everything up to time T has probably arrived, which lets a window close and emit a result. Anything later is dropped, or routed to a side output for separate handling.</p>
+
+<p>The allowed lateness is a configuration value, and it is genuinely a business decision, not a technical default. "We will count events up to 2 hours late and discard the rest" is a statement about what the numbers mean, and someone other than you should agree to it.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">Store both timestamps. Always.</span>
+    <p>Every record should carry <code>event_time</code> (when it happened) and <code>ingested_at</code> (when you received it). It costs two columns.</p>
+    <p>Aggregate on event time, monitor freshness on ingestion time, and measure lateness by subtracting one from the other. Without both, "why is last Tuesday's number different now?" is unanswerable.</p>
+  </div>
+</div>
+
+<h2 id="restatement-deciding-what-history-means" class="anchored"><a class="anchor" href="#restatement-deciding-what-history-means" aria-label="Link to this section">#</a>Restatement: deciding what history means<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="restatement-deciding-what-history-means"><span>Done</span></label></h2>
+
+<p>If you reprocess late data, historical numbers change. Someone will notice, and the conversation is much better if you had it in advance.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Policy</th><th>Means</th><th>Suits</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Always current</strong></td><td>Numbers update whenever new data arrives, silently</td><td>Product analytics, experimentation</td></tr>
+    <tr><td><strong>Announced restatement</strong></td><td>History can change, but a change is communicated</td><td>Marketing attribution, operational reporting</td></tr>
+    <tr><td><strong>Frozen after a period</strong></td><td>After close of month, the number never moves again</td><td>Finance, regulatory reporting</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Finance teams care about this intensely. Discovering their expectations <em>after</em> you have silently changed last quarter's revenue is a genuinely bad day, and one that damages trust in the platform for a long time afterwards.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">The exercise</span>
+    <p>Run a streaming consumer that writes to a table. Kill it mid-run. Restart it. Count the rows.</p>
+    <p>Then add an <code>event_id</code> and a deduplicating read, and do it again. The difference between the two row counts is the whole of this lesson, and seeing it on your own machine makes it permanent in a way reading cannot.</p>
+  </div>
+</div>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<ul>
+  <li>Explain why exactly-once delivery is not achievable at the transport layer, using the lost-acknowledgement argument</li>
+  <li>Make a non-idempotent write idempotent, choosing correctly between overwrite, merge and dedup for a given situation</li>
+  <li>Say why a random UUID assigned at ingestion is a broken deduplication key</li>
+  <li>Distinguish event time from processing time, and give a real scenario where the gap is days</li>
+  <li>Choose a lookback window from a lateness distribution rather than by intuition</li>
+  <li>Name the three restatement policies and say which one a finance team will want</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="orchestration.html"><span>Previous</span><b>Orchestration</b></a><a class="pn pn-next" href="quality.html"><span>Next</span><b>Quality</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#assume-every-step-fails-halfway">Assume every step fails halfway</a></li><li class="toc-l2"><a href="#the-three-delivery-guarantees">The three delivery guarantees</a></li><li class="toc-l2"><a href="#three-ways-to-make-a-write-idempotent">Three ways to make a write idempotent</a></li><li class="toc-l3"><a href="#1-overwrite-by-partition">1. Overwrite by partition</a></li><li class="toc-l3"><a href="#2-merge-on-a-stable-key">2. Merge on a stable key</a></li><li class="toc-l3"><a href="#3-deduplicate-on-read-or-in-staging">3. Deduplicate on read or in staging</a></li><li class="toc-l2"><a href="#late-and-out-of-order-data">Late and out-of-order data</a></li><li class="toc-l3"><a href="#handling-it-in-batch-the-lookback-window">Handling it in batch: the lookback window</a></li><li class="toc-l3"><a href="#handling-it-in-streaming-watermarks">Handling it in streaming: watermarks</a></li><li class="toc-l2"><a href="#restatement-deciding-what-history-means">Restatement: deciding what history means</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 309" role="img" class="dg">
+  <title>Transform before or after loading?</title><desc>ETL transforms in a separate engine before loading; ELT loads raw and transforms in the warehouse</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Transform before or after loading?</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-muted" x="16" y="16" width="354" height="239.075" rx="10" ry="10"/>
+  <text class="dg-label" x="193" y="49.1" font-size="16" text-anchor="middle" font-weight="500">ETL · transform first</text>
+  <circle class="dg-dot" cx="36" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="48" y="81.5" font-size="12.5" text-anchor="start">Order: extract, transform, load</text>
+  <circle class="dg-dot" cx="36" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="48" y="108.6" font-size="12.5" text-anchor="start">Where: a separate processing engine</text>
+  <circle class="dg-dot" cx="36" cy="132.9" r="2.5"/>
+  <text class="dg-sub" x="48" y="135.7" font-size="12.5" text-anchor="start">Raw data: often never kept</text>
+  <circle class="dg-dot" cx="36" cy="160.1" r="2.5"/>
+  <text class="dg-sub" x="48" y="162.8" font-size="12.5" text-anchor="start">Fixing a bug in old logic: reprocess from the</text>
+  <text class="dg-sub" x="48" y="180.9" font-size="12.5" text-anchor="start">source</text>
+  <circle class="dg-dot" cx="36" cy="205.3" r="2.5"/>
+  <text class="dg-sub" x="48" y="208.1" font-size="12.5" text-anchor="start">Still right for: heavy parsing, and PII</text>
+  <text class="dg-sub" x="48" y="226.2" font-size="12.5" text-anchor="start">masked before landing</text>
+  <rect class="dg-box dg-box-accent" x="390" y="16" width="354" height="239.075" rx="10" ry="10"/>
+  <text class="dg-label" x="567" y="49.1" font-size="16" text-anchor="middle" font-weight="500">ELT · load first</text>
+  <circle class="dg-dot" cx="410" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="422" y="81.5" font-size="12.5" text-anchor="start">Order: extract, load, transform</text>
+  <circle class="dg-dot" cx="410" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="422" y="108.6" font-size="12.5" text-anchor="start">Where: inside the warehouse, in SQL</text>
+  <circle class="dg-dot" cx="410" cy="132.9" r="2.5"/>
+  <text class="dg-sub" x="422" y="135.7" font-size="12.5" text-anchor="start">Raw data: kept forever</text>
+  <circle class="dg-dot" cx="410" cy="160.1" r="2.5"/>
+  <text class="dg-sub" x="422" y="162.8" font-size="12.5" text-anchor="start">Fixing a bug in old logic: re-run SQL over</text>
+  <text class="dg-sub" x="422" y="180.9" font-size="12.5" text-anchor="start">data you already have</text>
+  <circle class="dg-dot" cx="410" cy="205.3" r="2.5"/>
+  <text class="dg-sub" x="422" y="208.1" font-size="12.5" text-anchor="start">The modern default for most teams</text>
+  </g>
+</svg>

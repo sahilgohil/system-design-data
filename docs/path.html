@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" data-page="path">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A twelve-week practice path · System Design for Data Engineering</title>
+<meta name="description" content="Twelve weeks of projects, each ending in something that runs, building from SQL to a streaming consumer.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html" class="active" aria-current="page">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">Keep going</p>
+      <h1>A twelve-week practice path</h1>
+      <p class="lede">Reading about this field has sharply diminishing returns. This is the build order that turns the previous lessons into something you can actually do.</p>
+      <h2 id="how-to-use-this" class="anchored"><a class="anchor" href="#how-to-use-this" aria-label="Link to this section">#</a>How to use this<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="how-to-use-this"><span>Done</span></label></h2>
+
+<p>Every block ends with something that runs on your own machine. The weeks are a suggestion; the ordering is not, because each one depends on the last.</p>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 206" role="img" class="dg">
+  <title>Twelve weeks, each ending in something that runs</title><desc>SQL, then Python extraction, then storage and modelling, then dbt, then orchestration, then scale</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Twelve weeks, each ending in something that runs</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-accent" x="16" y="46" width="117.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="74.66666666666666" y="69.8" font-size="15" text-anchor="middle" font-weight="500">1-2 SQL</text>
+  <text class="dg-sub" x="74.66666666666666" y="110.3" font-size="12.5" text-anchor="middle">window</text>
+  <text class="dg-sub" x="74.66666666666666" y="128.4" font-size="12.5" text-anchor="middle">functions,</text>
+  <text class="dg-sub" x="74.66666666666666" y="146.5" font-size="12.5" text-anchor="middle">DuckDB</text>
+  <rect class="dg-box" x="137.33333333333331" y="46" width="117.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="195.99999999999997" y="69.8" font-size="15" text-anchor="middle" font-weight="500">3-4 Python</text>
+  <text class="dg-sub" x="195.99999999999997" y="110.3" font-size="12.5" text-anchor="middle">a rerunnable</text>
+  <text class="dg-sub" x="195.99999999999997" y="128.4" font-size="12.5" text-anchor="middle">extractor</text>
+  <rect class="dg-box" x="258.66666666666663" y="46" width="117.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="317.3333333333333" y="69.8" font-size="15" text-anchor="middle" font-weight="500">5-6 Storage</text>
+  <text class="dg-sub" x="317.3333333333333" y="110.3" font-size="12.5" text-anchor="middle">Parquet,</text>
+  <text class="dg-sub" x="317.3333333333333" y="128.4" font-size="12.5" text-anchor="middle">partitions, a</text>
+  <text class="dg-sub" x="317.3333333333333" y="146.5" font-size="12.5" text-anchor="middle">star schema</text>
+  <rect class="dg-box" x="379.99999999999994" y="46" width="117.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="438.66666666666663" y="69.8" font-size="15" text-anchor="middle" font-weight="500">7-8 dbt</text>
+  <text class="dg-sub" x="438.66666666666663" y="110.3" font-size="12.5" text-anchor="middle">layers, tests,</text>
+  <text class="dg-sub" x="438.66666666666663" y="128.4" font-size="12.5" text-anchor="middle">incremental</text>
+  <rect class="dg-box" x="501.33333333333326" y="46" width="117.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="559.9999999999999" y="69.8" font-size="15" text-anchor="middle" font-weight="500">9-10 Airflow</text>
+  <text class="dg-sub" x="559.9999999999999" y="110.3" font-size="12.5" text-anchor="middle">schedule it,</text>
+  <text class="dg-sub" x="559.9999999999999" y="128.4" font-size="12.5" text-anchor="middle">then backfill it</text>
+  <rect class="dg-box" x="622.6666666666666" y="46" width="121.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="681.3333333333333" y="69.8" font-size="15" text-anchor="middle" font-weight="500">11-12 Scale</text>
+  <text class="dg-sub" x="681.3333333333333" y="110.3" font-size="12.5" text-anchor="middle">Spark and Kafka</text>
+  <text class="dg-sub" x="681.3333333333333" y="128.4" font-size="12.5" text-anchor="middle">basics</text>
+  <text class="dg-sub" x="16" y="30.3" font-size="12.5" text-anchor="start">Weeks →</text>
+  </g>
+</svg>
+  <figcaption>Each block produces a working artefact, and each one is a prerequisite for the next. The order is dependency, not importance.</figcaption>
+</figure>
+
+<h2 id="weeks-12-sql-properly" class="anchored"><a class="anchor" href="#weeks-12-sql-properly" aria-label="Link to this section">#</a>Weeks 1–2 · SQL, properly<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="weeks-12-sql-properly"><span>Done</span></label></h2>
+
+<p>Not <code>SELECT ... WHERE</code>. The things that data engineering actually runs on: window functions, CTEs, self-joins, <code>GROUP BY</code> with <code>HAVING</code>, date arithmetic, and reading a query plan.</p>
+
+<p>Window functions especially. Deduplication, sessionisation, running totals, and slowly changing dimensions are all written with them, and every one of those appears in the lessons above.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">Project</span>
+    <p>Load a public dataset over 1 GB — NYC taxi trips is the classic — into <strong>DuckDB</strong> on your laptop and answer ten non-trivial questions with SQL.</p>
+    <p>DuckDB is the fastest way to experience columnar analytics with no cloud account, no cluster, and no setup. Install it and you are running an OLAP engine in about thirty seconds.</p>
+  </div>
+</div>
+
+<h2 id="weeks-34-python-for-moving-data" class="anchored"><a class="anchor" href="#weeks-34-python-for-moving-data" aria-label="Link to this section">#</a>Weeks 3–4 · Python for moving data<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="weeks-34-python-for-moving-data"><span>Done</span></label></h2>
+
+<p>Requests and pagination, retries with exponential backoff, reading and writing Parquet with <code>pyarrow</code> or <code>polars</code>, handling secrets, and structured logging.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">Project</span>
+    <p>Write an extractor for a free public API that lands raw JSON to disk, partitioned by date, then converts it to Parquet.</p>
+    <p>Then make it safe to rerun — same input, same output, no duplicates — and <strong>prove it by running it three times and comparing row counts.</strong> That proof is the point of the exercise. It is <a href="reliability.html">Reliability</a> made concrete.</p>
+  </div>
+</div>
+
+<h2 id="weeks-56-storage-formats-and-modelling" class="anchored"><a class="anchor" href="#weeks-56-storage-formats-and-modelling" aria-label="Link to this section">#</a>Weeks 5–6 · Storage, formats and modelling<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="weeks-56-storage-formats-and-modelling"><span>Done</span></label></h2>
+
+<p>Re-read <a href="storage.html">Storage</a> and <a href="modeling.html">Modelling</a>, then measure the claims yourself. Compare file sizes and query times for the same data as CSV against Parquet, partitioned against not. Watching a 30-second query become 0.4 seconds on your own machine teaches this better than any explanation.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">Project</span>
+    <p>Model your dataset into a star schema. Write the grain of your fact table in a comment — "one row per…" — <em>before</em> writing any SQL. Then implement one SCD Type 2 dimension with <code>valid_from</code>, <code>valid_to</code> and a surrogate key.</p>
+  </div>
+</div>
+
+<h2 id="weeks-78-the-transformation-layer" class="anchored"><a class="anchor" href="#weeks-78-the-transformation-layer" aria-label="Link to this section">#</a>Weeks 7–8 · The transformation layer<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="weeks-78-the-transformation-layer"><span>Done</span></label></h2>
+
+<p>Learn dbt, or SQLMesh. Sources, models, <code>ref()</code>, materialisations, tests and documentation. Build a raw → staging → marts project with real layering.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">Project</span>
+    <p>Convert weeks 5–6's SQL into a dbt project with at least a uniqueness test, a not-null test, a relationship test, and one incremental model.</p>
+    <p>Then <strong>break something upstream on purpose</strong> — rename a column, duplicate a key, null out a field — and watch which test catches it and which does not. The tests that fail to fire are the interesting result.</p>
+  </div>
+</div>
+
+<h2 id="weeks-910-orchestration" class="anchored"><a class="anchor" href="#weeks-910-orchestration" aria-label="Link to this section">#</a>Weeks 9–10 · Orchestration<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="weeks-910-orchestration"><span>Done</span></label></h2>
+
+<p>Airflow, Dagster or Prefect. Focus on DAG structure, the logical-date parameter, retries, sensors and backfills rather than on the tool's configuration surface.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">Project — the one that teaches the most</span>
+    <p>Schedule your pipeline to run daily. Let it run for several days. Then delete a week of output and <strong>backfill it</strong>.</p>
+    <p>If the result afterwards is byte-identical to before, your pipeline is idempotent and correctly parameterised. If you get duplicates, or seven copies of today's data, you have just reproduced the single most common production bug in data engineering — on your laptop, where it costs nothing.</p>
+  </div>
+</div>
+
+<h2 id="weeks-1112-scale-and-streaming" class="anchored"><a class="anchor" href="#weeks-1112-scale-and-streaming" aria-label="Link to this section">#</a>Weeks 11–12 · Scale and streaming<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="weeks-1112-scale-and-streaming"><span>Done</span></label></h2>
+
+<p>Spark fundamentals — partitions, shuffle, skew, spill — enough to read a job and reason about why it is slow. Then Kafka basics: producing, consuming, offsets, partitions.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">Project</span>
+    <p>Run Kafka locally. Produce synthetic events, consume them into partitioned Parquet, and compute a windowed aggregate.</p>
+    <p>Then <strong>kill the consumer mid-run and restart it.</strong> Count the rows before and after. Whatever you observe — duplicates, gaps, or neither — is <a href="reliability.html">Reliability</a> happening to you in person, and it will stay learned.</p>
+  </div>
+</div>
+
+<h2 id="after-the-twelve-weeks" class="anchored"><a class="anchor" href="#after-the-twelve-weeks" aria-label="Link to this section">#</a>After the twelve weeks<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="after-the-twelve-weeks"><span>Done</span></label></h2>
+
+<ul>
+  <li><strong>Read <em>Designing Data-Intensive Applications</em> properly</strong>, a chapter a week. It will be much easier now that you have built something, and much more useful than it would have been at week one.</li>
+  <li><strong>Retrofit the hard parts.</strong> Take a pipeline you already built and add the things from <a href="quality.html">Quality</a> and <a href="cost.html">Cost</a>: freshness monitoring, the six test categories, a runbook, a cost measurement.</li>
+  <li><strong>Practise the framework out loud.</strong> How would you design analytics for a music streaming service? A food delivery app? A hospital? Say the answer aloud using the <a href="framework.html">eight steps</a>. Fluency in the framework is a separate skill from knowing the content, and it only comes from rehearsal.</li>
+</ul>
+
+<div class="note">
+  <div>
+    <span class="note-title">A note on portfolios</span>
+    <p>A small pipeline that is idempotent, tested, monitored, documented, and honest about its trade-offs is worth more than an elaborate one that only works when nothing goes wrong.</p>
+    <p>Interviewers can tell the difference within about two minutes, and the second kind is much more common — which means the first kind stands out more than its size would suggest. A README that says "here is what this does, here is what breaks it, here is what I would do differently at ten times the volume" is a stronger artefact than another five services.</p>
+  </div>
+</div>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<ul>
+  <li>Have a running query engine on your own machine and a dataset over a gigabyte in it</li>
+  <li>Have written an extractor you have proven is safe to rerun</li>
+  <li>Have measured the CSV-to-Parquet difference yourself rather than taking this course's word for it</li>
+  <li>Have watched a data test catch a bug you introduced deliberately</li>
+  <li>Have performed a backfill and verified the output was unchanged</li>
+  <li>Have killed a streaming consumer mid-run and looked at what happened to the data</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="examples.html"><span>Previous</span><b>Worked examples</b></a><a class="pn pn-next" href="reference.html"><span>Next</span><b>Glossary &amp; numbers</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#how-to-use-this">How to use this</a></li><li class="toc-l2"><a href="#weeks-12-sql-properly">Weeks 1–2 · SQL, properly</a></li><li class="toc-l2"><a href="#weeks-34-python-for-moving-data">Weeks 3–4 · Python for moving data</a></li><li class="toc-l2"><a href="#weeks-56-storage-formats-and-modelling">Weeks 5–6 · Storage, formats and modelling</a></li><li class="toc-l2"><a href="#weeks-78-the-transformation-layer">Weeks 7–8 · The transformation layer</a></li><li class="toc-l2"><a href="#weeks-910-orchestration">Weeks 9–10 · Orchestration</a></li><li class="toc-l2"><a href="#weeks-1112-scale-and-streaming">Weeks 11–12 · Scale and streaming</a></li><li class="toc-l2"><a href="#after-the-twelve-weeks">After the twelve weeks</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

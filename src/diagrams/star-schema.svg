@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" role="img" class="dg">
+  <title>A star schema</title>
+  <desc>One fact table in the centre holding measures and foreign keys, joined outward to four dimension tables holding descriptive context</desc>
+
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">A star schema: one fact, four dimensions</text>
+
+  <g transform="translate(0 20)">
+    <!-- join lines, drawn first so boxes sit on top -->
+    <line class="dg-line" x1="380" y1="180" x2="150" y2="90"/>
+    <line class="dg-line" x1="380" y1="180" x2="610" y2="90"/>
+    <line class="dg-line" x1="380" y1="200" x2="150" y2="290"/>
+    <line class="dg-line" x1="380" y1="200" x2="610" y2="290"/>
+
+    <!-- fact table, centre -->
+    <rect class="dg-box dg-box-accent" x="270" y="140" width="220" height="100" rx="10" ry="10"/>
+    <text class="dg-label" x="380" y="167" font-size="15" text-anchor="middle" font-weight="500">fct_order_items</text>
+    <text class="dg-sub" x="380" y="188" font-size="12.5" text-anchor="middle">grain: one row per line item</text>
+    <text class="dg-sub" x="380" y="207" font-size="12.5" text-anchor="middle">measures: quantity, revenue</text>
+    <text class="dg-sub" x="380" y="226" font-size="12.5" text-anchor="middle">keys: customer, product, date</text>
+
+    <!-- dimensions -->
+    <rect class="dg-box" x="30" y="52" width="200" height="62" rx="10" ry="10"/>
+    <text class="dg-label" x="130" y="79" font-size="15" text-anchor="middle" font-weight="500">dim_customer</text>
+    <text class="dg-sub" x="130" y="99" font-size="12.5" text-anchor="middle">segment, country, signup date</text>
+
+    <rect class="dg-box" x="510" y="52" width="200" height="62" rx="10" ry="10"/>
+    <text class="dg-label" x="610" y="79" font-size="15" text-anchor="middle" font-weight="500">dim_product</text>
+    <text class="dg-sub" x="610" y="99" font-size="12.5" text-anchor="middle">name, category, brand</text>
+
+    <rect class="dg-box" x="30" y="266" width="200" height="62" rx="10" ry="10"/>
+    <text class="dg-label" x="130" y="293" font-size="15" text-anchor="middle" font-weight="500">dim_date</text>
+    <text class="dg-sub" x="130" y="313" font-size="12.5" text-anchor="middle">week, quarter, is_holiday</text>
+
+    <rect class="dg-box" x="510" y="266" width="200" height="62" rx="10" ry="10"/>
+    <text class="dg-label" x="610" y="293" font-size="15" text-anchor="middle" font-weight="500">dim_store</text>
+    <text class="dg-sub" x="610" y="313" font-size="12.5" text-anchor="middle">region, channel, opened</text>
+
+    <text class="dg-sub" x="380" y="360" font-size="12.5" text-anchor="middle">Every question is one join hop from the fact table.</text>
+  </g>
+</svg>

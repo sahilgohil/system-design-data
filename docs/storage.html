@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en" data-page="storage">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Storage, formats and layout · System Design for Data Engineering</title>
+<meta name="description" content="Object storage, warehouses and lakehouses, why Parquet wins, and how physical layout decides your bill.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html" class="active" aria-current="page">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">The building blocks</p>
+      <h1>Storage, formats and layout</h1>
+      <p class="lede">Where the data sits, what format it sits in, and how it is arranged. These three choices affect cost and speed more than almost anything else you will decide.</p>
+      <h2 id="the-shift-that-made-everything-else-possible" class="anchored"><a class="anchor" href="#the-shift-that-made-everything-else-possible" aria-label="Link to this section">#</a>The shift that made everything else possible<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-shift-that-made-everything-else-possible"><span>Done</span></label></h2>
+
+<p>For decades, a database meant one thing: a machine with disks attached, where storage and the engine that read it were welded together. Needing more query power meant buying a bigger machine — and paying for its disks whether you used them or not. Storing five years of history meant paying for compute you were not running.</p>
+
+<p>Then cloud object storage arrived — Amazon S3, Google Cloud Storage, Azure Data Lake Storage — and broke the weld. Storage became a separate, absurdly cheap service, and compute became something you spin up, use, and switch off.</p>
+
+<p>This <strong>separation of storage and compute</strong> is the defining architectural change of the last fifteen years, and it is why you can now keep 500 TB of history and pay almost nothing until someone asks a question of it.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">What object storage actually is</span>
+    <p>A giant key–value store where the keys look like file paths and the values are files. That is all. It is cheap (roughly $20–25 per TB per month), extraordinarily durable, and has no compute of its own.</p>
+    <p>The trade-off: tens of milliseconds of latency per request, no transactions, no indexes. Everything in the rest of this page is, in one way or another, about adding those things back.</p>
+  </div>
+</div>
+
+<h2 id="choosing-where-data-lives" class="anchored"><a class="anchor" href="#choosing-where-data-lives" aria-label="Link to this section">#</a>Choosing where data lives<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="choosing-where-data-lives"><span>Done</span></label></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Option</th><th>What it is</th><th>Use it when</th><th>Watch out for</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Object storage</strong></td><td>Raw files in S3 / GCS / ADLS</td><td>Landing zone for raw data, archives, anything huge and cold</td><td>No schema enforcement, no transactions on its own</td></tr>
+    <tr><td><strong>Data warehouse</strong></td><td>Managed columnar SQL engine — Snowflake, BigQuery, Redshift</td><td>Analytics and BI. The default for most companies</td><td>Cost scales with data scanned; vendor lock-in</td></tr>
+    <tr><td><strong>Lakehouse</strong></td><td>ACID table layer over object storage — Iceberg, Delta Lake, Hudi</td><td>Huge scale, multiple query engines, open formats</td><td>Real operational work: compaction, maintenance, tuning</td></tr>
+    <tr><td><strong>OLTP database</strong></td><td>Postgres, MySQL</td><td>Application state; small datasets served to apps</td><td>Not for analytics at scale — see <a href="foundations.html">Foundations</a></td></tr>
+    <tr><td><strong>Key–value store</strong></td><td>DynamoDB, Redis, Cassandra</td><td>Millisecond lookups by key: feature serving, caching</td><td>No joins, no ad-hoc analysis</td></tr>
+    <tr><td><strong>Search index</strong></td><td>Elasticsearch, OpenSearch</td><td>Full-text search, log exploration</td><td>Expensive as a system of record</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="what-a-lakehouse-is-without-the-marketing" class="anchored"><a class="anchor" href="#what-a-lakehouse-is-without-the-marketing" aria-label="Link to this section">#</a>What a "lakehouse" is, without the marketing</h3>
+
+<p>You will hear the word constantly. Here is what it means mechanically.</p>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 377" role="img" class="dg">
+  <title>What a lakehouse actually stacks up</title><desc>Query engines on top, table format metadata below, Parquet files below that, object storage at the base</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">What a lakehouse actually stacks up</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-accent" x="16" y="16" width="502" height="67.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="41.3" font-size="15" text-anchor="start" font-weight="500">Query engines</text>
+  <text class="dg-sub" x="34" y="63.0" font-size="12.5" text-anchor="start">Spark, Trino, DuckDB, warehouses</text>
+  <text class="dg-sub" x="534" y="42.1" font-size="12.5" text-anchor="start">Several can read the same</text>
+  <text class="dg-sub" x="534" y="60.2" font-size="12.5" text-anchor="start">table.</text>
+  <rect class="dg-box" x="16" y="95.875" width="502" height="67.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="121.2" font-size="15" text-anchor="start" font-weight="500">Table format</text>
+  <text class="dg-sub" x="34" y="142.9" font-size="12.5" text-anchor="start">Iceberg, Delta Lake, Hudi</text>
+  <text class="dg-sub" x="534" y="121.9" font-size="12.5" text-anchor="start">Adds transactions, updates,</text>
+  <text class="dg-sub" x="534" y="140.1" font-size="12.5" text-anchor="start">time travel.</text>
+  <rect class="dg-box" x="16" y="175.75" width="502" height="67.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="201.1" font-size="15" text-anchor="start" font-weight="500">File format</text>
+  <text class="dg-sub" x="34" y="222.8" font-size="12.5" text-anchor="start">Parquet files</text>
+  <text class="dg-sub" x="534" y="201.8" font-size="12.5" text-anchor="start">Columnar, compressed,</text>
+  <text class="dg-sub" x="534" y="219.9" font-size="12.5" text-anchor="start">self-describing.</text>
+  <rect class="dg-box" x="16" y="255.625" width="502" height="67.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="280.9" font-size="15" text-anchor="start" font-weight="500">Object storage</text>
+  <text class="dg-sub" x="34" y="302.6" font-size="12.5" text-anchor="start">S3, GCS, ADLS</text>
+  <text class="dg-sub" x="534" y="281.7" font-size="12.5" text-anchor="start">Cheap, durable, no compute of</text>
+  <text class="dg-sub" x="534" y="299.8" font-size="12.5" text-anchor="start">its own.</text>
+  </g>
+</svg>
+  <figcaption>A lakehouse is four layers, and the interesting one is the table format — it is what turns a folder of files into something you can safely update.</figcaption>
+</figure>
+
+<p>A folder of Parquet files in S3 is not a table. You cannot update a row, two writers will corrupt each other, and there is no way to ask what the data looked like last Tuesday. A <strong>table format</strong> — Iceberg, Delta Lake, Hudi — adds a metadata layer that tracks which files belong to the table at which point in time. That single addition buys you transactions, <code>UPDATE</code> and <code>DELETE</code>, schema evolution, time travel, and safe concurrent writers.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">What to actually choose as a beginner</span>
+    <p>If your data is under roughly 10 TB and your team writes SQL, use a cloud warehouse. Full stop.</p>
+    <p>The lakehouse path earns its complexity at large scale, with several processing engines, or when avoiding vendor lock-in is a real business requirement rather than a preference. Complexity has a running cost, and beginners consistently underestimate it.</p>
+  </div>
+</div>
+
+<h2 id="file-formats-the-highest-return-decision-you-can-make" class="anchored"><a class="anchor" href="#file-formats-the-highest-return-decision-you-can-make" aria-label="Link to this section">#</a>File formats: the highest-return decision you can make<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="file-formats-the-highest-return-decision-you-can-make"><span>Done</span></label></h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Format</th><th>Layout</th><th>Compression</th><th>Schema</th><th>Best for</th></tr></thead>
+  <tbody>
+    <tr><td><strong>CSV</strong></td><td>row, text</td><td>poor</td><td>none</td><td>Handing a file to a human. Avoid otherwise</td></tr>
+    <tr><td><strong>JSON / JSONL</strong></td><td>row, text</td><td>poor</td><td>implicit</td><td>API payloads, semi-structured landing data</td></tr>
+    <tr><td><strong>Avro</strong></td><td>row, binary</td><td>good</td><td>embedded, evolvable</td><td>Streaming records, Kafka, write-heavy work</td></tr>
+    <tr><td><strong>Parquet</strong></td><td><strong>columnar</strong>, binary</td><td>excellent</td><td>embedded</td><td><strong>The default for analytics storage</strong></td></tr>
+    <tr><td><strong>ORC</strong></td><td>columnar, binary</td><td>excellent</td><td>embedded</td><td>Same niche as Parquet, common in Hive estates</td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 291" role="img" class="dg">
+  <title>Why layout decides the bill</title><desc>Row storage keeps a whole record together; column storage keeps each field together</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Why layout decides the bill</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-muted" x="16" y="16" width="354" height="220.95" rx="10" ry="10"/>
+  <text class="dg-label" x="193" y="49.1" font-size="16" text-anchor="middle" font-weight="500">Row storage</text>
+  <circle class="dg-dot" cx="36" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="48" y="81.5" font-size="12.5" text-anchor="start">Stores: [id, name, city, amount] together</text>
+  <circle class="dg-dot" cx="36" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="48" y="108.6" font-size="12.5" text-anchor="start">Reading one whole record: one seek</text>
+  <circle class="dg-dot" cx="36" cy="132.9" r="2.5"/>
+  <text class="dg-sub" x="48" y="135.7" font-size="12.5" text-anchor="start">Summing one column: reads every column</text>
+  <circle class="dg-dot" cx="36" cy="160.1" r="2.5"/>
+  <text class="dg-sub" x="48" y="162.8" font-size="12.5" text-anchor="start">Mixed types sit side by side, so compression</text>
+  <text class="dg-sub" x="48" y="180.9" font-size="12.5" text-anchor="start">is poor</text>
+  <circle class="dg-dot" cx="36" cy="205.3" r="2.5"/>
+  <text class="dg-sub" x="48" y="208.1" font-size="12.5" text-anchor="start">Right for apps</text>
+  <rect class="dg-box dg-box-accent" x="390" y="16" width="354" height="220.95" rx="10" ry="10"/>
+  <text class="dg-label" x="567" y="49.1" font-size="16" text-anchor="middle" font-weight="500">Column storage</text>
+  <circle class="dg-dot" cx="410" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="422" y="81.5" font-size="12.5" text-anchor="start">Stores: all ids, then all names, then all</text>
+  <text class="dg-sub" x="422" y="99.6" font-size="12.5" text-anchor="start">cities</text>
+  <circle class="dg-dot" cx="410" cy="124.0" r="2.5"/>
+  <text class="dg-sub" x="422" y="126.7" font-size="12.5" text-anchor="start">Reading one whole record: many seeks</text>
+  <circle class="dg-dot" cx="410" cy="151.1" r="2.5"/>
+  <text class="dg-sub" x="422" y="153.8" font-size="12.5" text-anchor="start">Summing one column: reads only that column</text>
+  <circle class="dg-dot" cx="410" cy="178.2" r="2.5"/>
+  <text class="dg-sub" x="422" y="180.9" font-size="12.5" text-anchor="start">Same type repeated, so compression is 5-20x</text>
+  <circle class="dg-dot" cx="410" cy="205.3" r="2.5"/>
+  <text class="dg-sub" x="422" y="208.1" font-size="12.5" text-anchor="start">Right for analytics</text>
+  </g>
+</svg>
+  <figcaption>The same trade-off from Foundations, now as a storage decision: row formats serve records, column formats serve questions.</figcaption>
+</figure>
+
+<h3 id="three-mechanisms-that-make-parquet-fast" class="anchored"><a class="anchor" href="#three-mechanisms-that-make-parquet-fast" aria-label="Link to this section">#</a>Three mechanisms that make Parquet fast</h3>
+
+<p>Worth knowing by name, because you will see all three in query plans and documentation:</p>
+
+<ul>
+  <li><strong>Column pruning</strong> — the reader fetches only the columns your query mentions. Selecting 3 columns from a 200-column table reads 1.5% of the file.</li>
+  <li><strong>Predicate pushdown</strong> — every file stores min/max statistics per column per row-group, so a filter like <code>WHERE order_date = '2026-03-01'</code> can skip entire files without decompressing them.</li>
+  <li><strong>Encoding and compression</strong> — dictionary and run-length encoding on same-type columns, then Snappy or ZSTD on top.</li>
+</ul>
+
+<p>The practical effect: a 10 GB CSV routinely becomes a 1–1.5 GB Parquet file, and queries against it run five to fifty times faster. Converting a raw CSV or JSON landing zone to Parquet is often the single highest-return change a beginner can make to an existing pipeline.</p>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">The small file problem</span>
+    <p>A streaming job that writes a file every 30 seconds produces 2,880 files a day and about a million a year. Every query must then open a million files, and the per-file overhead — list, open, read the footer — completely dominates the actual reading. Queries crawl; metadata operations start timing out.</p>
+    <p><strong>Target 128 MB to 1 GB per file.</strong> Below about 32 MB you are heading for trouble at scale. The fix is <strong>compaction</strong>: a scheduled job that rewrites many small files into fewer large ones. Table formats provide it as a built-in operation; on raw Parquet you must write and schedule it yourself. Budget for it as ongoing operational work, not a one-off.</p>
+  </div>
+</div>
+
+<h2 id="layout-how-you-arrange-files-decides-what-a-query-costs" class="anchored"><a class="anchor" href="#layout-how-you-arrange-files-decides-what-a-query-costs" aria-label="Link to this section">#</a>Layout: how you arrange files decides what a query costs<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="layout-how-you-arrange-files-decides-what-a-query-costs"><span>Done</span></label></h2>
+
+<p>In most cloud data platforms you are billed, directly or indirectly, for <strong>data scanned</strong>. So the cheapest query is the one that reads the least, and layout is how you make that happen.</p>
+
+<h3 id="partitioning" class="anchored"><a class="anchor" href="#partitioning" aria-label="Link to this section">#</a>Partitioning</h3>
+
+<p>Partitioning splits a table into physical subdirectories by the value of a column, almost always a date:</p>
+
+<pre><code>s3://lake/orders/dt=2026-03-01/part-0001.parquet
+s3://lake/orders/dt=2026-03-02/part-0001.parquet</code></pre>
+
+<p>A query filtered to March reads two directories instead of the whole table. That skipping is called <strong>partition pruning</strong>, and it is the workhorse optimisation of the entire field.</p>
+
+<p>Choosing a partition key well:</p>
+
+<ul>
+  <li><strong>Partition on what you filter by</strong>, which is a date in the overwhelming majority of cases.</li>
+  <li><strong>Aim for 100 MB – 1 GB per partition.</strong> This is the same size logic as file sizing, one level up.</li>
+  <li><strong>Never partition on a high-cardinality column.</strong> Partitioning by <code>user_id</code> across 10 million users creates 10 million tiny directories and will destroy performance rather than improve it.</li>
+  <li><strong>Do not over-partition by time.</strong> Hourly partitions on a table with 10 MB a day gives you 8,760 near-empty directories a year. Daily would be better; monthly might be better still.</li>
+</ul>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">Partitioning versus clustering</span>
+    <p>These get conflated constantly, and the distinction is simple once stated.</p>
+    <p><strong>Partitioning</strong> is physical separation into directories. It works for low-cardinality columns you filter on — dates, regions, event types.</p>
+    <p><strong>Clustering</strong> (also called sorting, or Z-ordering) physically <em>orders</em> rows within files so that min/max statistics become selective and files can be skipped. It is what you use for high-cardinality filter columns where partitioning would be a disaster — <code>user_id</code>, <code>product_sku</code>.</p>
+    <p>One-line test: if the number of distinct values is in the thousands or more, you want clustering, not partitioning.</p>
+  </div>
+</div>
+
+<h3 id="retention" class="anchored"><a class="anchor" href="#retention" aria-label="Link to this section">#</a>Retention</h3>
+
+<p>Nobody ever remembers to delete data, and storage bills grow forever. Decide at design time when partitions expire or move to cold storage. It is far easier to write the policy on day one than to negotiate it after someone notices the bill.</p>
+
+<h2 id="the-one-rule-about-raw-data" class="anchored"><a class="anchor" href="#the-one-rule-about-raw-data" aria-label="Link to this section">#</a>The one rule about raw data<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-one-rule-about-raw-data"><span>Done</span></label></h2>
+
+<p>Land what the source actually said, unmodified, and never edit it.</p>
+
+<p>This feels wasteful and is not. When you discover a parsing bug six months from now — and you will — the raw copy is the difference between reprocessing history in an afternoon and telling everyone the last six months of that metric are simply lost. It is also your only defence when someone claims the source system said something different from what you reported.</p>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">Try this</span>
+    <p>Take any CSV over a gigabyte. Load it into DuckDB, run an aggregation, and time it. Then <code>COPY</code> it to Parquet, run the identical query, and time that. Compare the file sizes too.</p>
+    <p>Watching a 30-second query become a 0.4-second query on your own machine teaches this page better than any explanation can.</p>
+  </div>
+</div>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<ul>
+  <li>Explain what separating storage from compute changed, and why it made keeping five years of history reasonable</li>
+  <li>Say what a table format adds to a folder of Parquet files, and name three things it enables</li>
+  <li>Choose between a warehouse and a lakehouse for a given team, and defend it on complexity rather than capability</li>
+  <li>Name the three mechanisms that make Parquet fast, and explain predicate pushdown to someone who has never heard of it</li>
+  <li>Diagnose the small file problem from a symptom, and say what fixes it</li>
+  <li>Pick a partition key for a table given its query patterns — and say when to cluster instead</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="foundations.html"><span>Previous</span><b>Foundations</b></a><a class="pn pn-next" href="ingestion.html"><span>Next</span><b>Ingestion</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#the-shift-that-made-everything-else-possible">The shift that made everything else possible</a></li><li class="toc-l2"><a href="#choosing-where-data-lives">Choosing where data lives</a></li><li class="toc-l3"><a href="#what-a-lakehouse-is-without-the-marketing">What a &quot;lakehouse&quot; is, without the marketing</a></li><li class="toc-l2"><a href="#file-formats-the-highest-return-decision-you-can-make">File formats: the highest-return decision you can make</a></li><li class="toc-l3"><a href="#three-mechanisms-that-make-parquet-fast">Three mechanisms that make Parquet fast</a></li><li class="toc-l2"><a href="#layout-how-you-arrange-files-decides-what-a-query-costs">Layout: how you arrange files decides what a query costs</a></li><li class="toc-l3"><a href="#partitioning">Partitioning</a></li><li class="toc-l3"><a href="#retention">Retention</a></li><li class="toc-l2"><a href="#the-one-rule-about-raw-data">The one rule about raw data</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!--meta
+{
+  "title": "Practice questions",
+  "navTitle": "Practice quiz",
+  "description": "Scenario-based practice questions on data system design, with an explanation on every answer.",
+  "eyebrow": "Practice",
+  "lede": "Twenty-six questions, filterable by topic. Read the explanation even when you got it right — most of them name the tempting wrong answer and why it is wrong, which is the part that transfers.",
+  "scripts": ["questions.js", "quiz.js"]
+}
+-->
+
+<h2 data-no-progress>Choose a category</h2>
+
+<div class="quiz-setup">
+  <button class="pill-toggle" data-category="all" aria-pressed="true">All</button>
+  <button class="pill-toggle" data-category="foundations" aria-pressed="false">Foundations</button>
+  <button class="pill-toggle" data-category="blocks" aria-pressed="false">Building blocks</button>
+  <button class="pill-toggle" data-category="hardparts" aria-pressed="false">The hard parts</button>
+  <button class="pill-toggle" data-category="design" aria-pressed="false">Designing systems</button>
+</div>
+
+<div id="quizRoot"></div>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en" data-page="orchestration">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchestration · System Design for Data Engineering</title>
+<meta name="description" content="DAGs, scheduling, backfills, and the logical-date rule that separates a pipeline from a script on a timer.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html" class="active" aria-current="page">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">The building blocks</p>
+      <h1>Orchestration</h1>
+      <p class="lede">What runs, in what order, when, and what happens when it fails. This is the layer that turns a collection of scripts into a system.</p>
+      <h2 id="why-cron-is-not-enough" class="anchored"><a class="anchor" href="#why-cron-is-not-enough" aria-label="Link to this section">#</a>Why cron is not enough<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="why-cron-is-not-enough"><span>Done</span></label></h2>
+
+<p>The obvious way to run a pipeline daily is a cron entry. It works for exactly one script. Then you add a second that must run after the first, so you schedule it half an hour later and hope. Then the first job occasionally takes 45 minutes, and now the second one reads yesterday's data without complaining. Nobody notices for a week.</p>
+
+<p>That gap — between "it ran" and "it ran after the thing it depends on succeeded" — is the reason orchestrators exist.</p>
+
+<h2 id="the-dag" class="anchored"><a class="anchor" href="#the-dag" aria-label="Link to this section">#</a>The DAG<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-dag"><span>Done</span></label></h2>
+
+<p>Work is modelled as a <strong>directed acyclic graph</strong>: tasks with declared dependencies, arrows one way, no loops. The orchestrator works out what can run in parallel, what must wait, and what to skip when something upstream fails.</p>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 615" role="img" class="dg">
+  <title>A daily DAG, task by task</title><desc>Wait for the source, extract, load raw, build staging, build marts, test, then publish</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">A daily DAG, task by task</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box" x="16" y="16" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="40.3" font-size="15" text-anchor="start" font-weight="500">Wait</text>
+  <text class="dg-sub" x="34" y="62.0" font-size="12.5" text-anchor="start">Sensor: has yesterday's source data landed?</text>
+  <line class="dg-arrow" x1="380" y1="87.875" x2="380" y2="104.875" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="111.875" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="136.2" font-size="15" text-anchor="start" font-weight="500">Extract and load</text>
+  <text class="dg-sub" x="34" y="157.9" font-size="12.5" text-anchor="start">Land raw, unchanged, at dt=2026-03-01</text>
+  <line class="dg-arrow" x1="380" y1="183.75" x2="380" y2="200.75" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="207.75" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="232.1" font-size="15" text-anchor="start" font-weight="500">Build staging</text>
+  <text class="dg-sub" x="34" y="253.8" font-size="12.5" text-anchor="start">Type, deduplicate, standardise</text>
+  <line class="dg-arrow" x1="380" y1="279.625" x2="380" y2="296.625" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="303.625" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="327.9" font-size="15" text-anchor="start" font-weight="500">Build marts</text>
+  <text class="dg-sub" x="34" y="349.6" font-size="12.5" text-anchor="start">Join and aggregate into business tables</text>
+  <line class="dg-arrow" x1="380" y1="375.5" x2="380" y2="392.5" marker-end="url(#dg-a)"/>
+  <rect class="dg-box dg-box-accent" x="16" y="399.5" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="423.8" font-size="15" text-anchor="start" font-weight="500">Test</text>
+  <text class="dg-sub" x="34" y="445.5" font-size="12.5" text-anchor="start">Freshness, volume, uniqueness, business rules</text>
+  <line class="dg-arrow" x1="380" y1="471.375" x2="380" y2="488.375" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="495.375" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="519.7" font-size="15" text-anchor="start" font-weight="500">Publish</text>
+  <text class="dg-sub" x="34" y="541.4" font-size="12.5" text-anchor="start">Swap in the new data and notify consumers</text>
+  </g>
+</svg>
+  <figcaption>A realistic daily DAG. Note that testing is a task with the power to stop publication, not a report emailed afterwards.</figcaption>
+</figure>
+
+<p>The common tools are Airflow (the incumbent, and the one most job listings name), with Dagster and Prefect as more modern, Python- and asset-first alternatives. Warehouse-native schedulers cover simpler cases.</p>
+
+<p>What an orchestrator gives you beyond a timer:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Capability</th><th>What it prevents</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Dependency management</strong></td><td>A task reading data its upstream has not written yet</td></tr>
+    <tr><td><strong>Retries with backoff</strong></td><td>A one-second network blip becoming a failed day</td></tr>
+    <tr><td><strong>Sensors and triggers</strong></td><td>Guessing at a schedule when you could wait for the file to actually land</td></tr>
+    <tr><td><strong>Backfills</strong></td><td>Hand-editing dates in a script forty times to rebuild a month</td></tr>
+    <tr><td><strong>Run history and logs</strong></td><td>Having no idea what happened on the 14th</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="the-two-rules-that-matter-more-than-the-tool" class="anchored"><a class="anchor" href="#the-two-rules-that-matter-more-than-the-tool" aria-label="Link to this section">#</a>The two rules that matter more than the tool<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="the-two-rules-that-matter-more-than-the-tool"><span>Done</span></label></h2>
+
+<p>You can learn any orchestrator's syntax in a week. These two properties are what actually determine whether your pipeline is safe, and they hold regardless of which tool you pick.</p>
+
+<h3 id="rule-1-every-task-must-be-idempotent" class="anchored"><a class="anchor" href="#rule-1-every-task-must-be-idempotent" aria-label="Link to this section">#</a>Rule 1 — Every task must be idempotent</h3>
+
+<p>Running a task twice for the same logical period must produce the same result as running it once. This is what makes retries and backfills safe, and it is the property beginners most often violate without realising.</p>
+
+<pre><code>-- NOT idempotent: the retry doubles every row
+INSERT INTO daily_sales
+SELECT ... FROM orders WHERE dt = '2026-03-01';
+
+-- Idempotent: the retry replaces the same partition
+DELETE FROM daily_sales WHERE dt = '2026-03-01';
+INSERT INTO daily_sales
+SELECT ... FROM orders WHERE dt = '2026-03-01';
+
+-- Idempotent and atomic: MERGE on a stable business key
+MERGE INTO daily_sales t
+USING staged s ON t.dt = s.dt AND t.sku = s.sku
+WHEN MATCHED THEN UPDATE SET ...
+WHEN NOT MATCHED THEN INSERT ...;</code></pre>
+
+<p>The full treatment — including what to do when there is no stable key — is in <a href="reliability.html">Reliability</a>. For now, hold onto the test: <em>if this task ran twice by accident, would anyone be able to tell?</em></p>
+
+<h3 id="rule-2-parameterise-by-logical-date-never-by-now" class="anchored"><a class="anchor" href="#rule-2-parameterise-by-logical-date-never-by-now" aria-label="Link to this section">#</a>Rule 2 — Parameterise by logical date, never by "now"</h3>
+
+<p>A task should receive the period it is processing as a parameter, and must never call <code>CURRENT_DATE</code> or <code>now()</code> to work out what to do.</p>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">What happens when you break this rule</span>
+    <p>It is June. You need to rebuild March because a bug has been found. You trigger the March 1st run.</p>
+    <p>The task calls <code>CURRENT_DATE</code>, gets June 14th, reads June's data, and writes it into March's partition. Your history is now not merely still wrong — it is wrong in a new and much more confusing way, and the job reported success.</p>
+    <p>Airflow calls the correct parameter the <em>logical date</em> or <em>data interval</em>; every orchestrator has an equivalent. Use it in every query, every file path, and every API call. There are no exceptions worth making.</p>
+  </div>
+</div>
+
+<div class="analogy">
+  <span class="analogy-label">Analogy</span>
+  <p>A recipe that says "use whatever is in the fridge" produces a different meal every time it is followed. A recipe that lists its ingredients produces the same meal today, next week, or when someone else follows it.</p>
+  <p>The logical date is the ingredient list. <code>CURRENT_DATE</code> is the fridge.</p>
+</div>
+
+<h2 id="backfills" class="anchored"><a class="anchor" href="#backfills" aria-label="Link to this section">#</a>Backfills<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="backfills"><span>Done</span></label></h2>
+
+<p>A backfill is rerunning a pipeline over a past date range — because you fixed a bug, added a column, or a source restated its data. It is one of the most common activities in the job, which is why the two rules above matter so much: <strong>a backfill is just idempotency and logical dates being exercised at volume.</strong></p>
+
+<p>Three practical points:</p>
+
+<ul>
+  <li><strong>Control the concurrency.</strong> Backfilling a year of daily partitions all at once will either exhaust your warehouse or cost a startling amount. Most orchestrators let you cap parallel runs; use it.</li>
+  <li><strong>Backfill into a separate location first</strong> when the change is risky, then swap. Rebuilding in place means a half-finished backfill is visible to users as half-wrong data.</li>
+  <li><strong>Watch out for the downstream.</strong> Rebuilding a table often means everything derived from it is now stale. Know what depends on what before you start — this is what lineage is for.</li>
+</ul>
+
+<h2 id="failures-retries-and-alerts" class="anchored"><a class="anchor" href="#failures-retries-and-alerts" aria-label="Link to this section">#</a>Failures, retries and alerts<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="failures-retries-and-alerts"><span>Done</span></label></h2>
+
+<p>Failures are normal. Design for them rather than treating each as a surprise.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Failure</th><th>Right response</th></tr></thead>
+  <tbody>
+    <tr><td>Transient — network blip, brief API 503</td><td>Automatic retry with exponential backoff. No human involved</td></tr>
+    <tr><td>Upstream late — source has not delivered</td><td>A sensor that waits, then alerts after a defined timeout. Do not silently process nothing</td></tr>
+    <tr><td>Data wrong — a test failed</td><td>Stop before publishing. A blocked pipeline is far cheaper than a published wrong number</td></tr>
+    <tr><td>Logic broken — the code raised an error</td><td>Alert a human. This is not retryable and retrying just delays the fix</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">Success is not the same as correctness</span>
+    <p>The most dangerous state in a data platform is a green dashboard. Every task succeeded, every run is a tick — and the source stopped sending rows four days ago, so your job has been faithfully processing an empty file each morning.</p>
+    <p>Task status tells you your <em>code</em> ran. It says nothing about whether the <em>data</em> is right. You need both, and the second one is the subject of <a href="quality.html">Quality</a>.</p>
+  </div>
+</div>
+
+<h2 id="how-to-structure-a-dag" class="anchored"><a class="anchor" href="#how-to-structure-a-dag" aria-label="Link to this section">#</a>How to structure a DAG<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="how-to-structure-a-dag"><span>Done</span></label></h2>
+
+<p>A few conventions that consistently pay off:</p>
+
+<ul>
+  <li><strong>One task, one responsibility.</strong> A task that extracts, transforms and loads cannot be retried partway, and its failure tells you nothing about which part broke.</li>
+  <li><strong>Make tasks small enough to rerun cheaply</strong> but large enough that the DAG is readable. A 300-task DAG nobody can look at is its own kind of failure.</li>
+  <li><strong>Prefer sensors to sleeping.</strong> "Wait until the file exists" is robust; "start at 03:00 and hope" is not.</li>
+  <li><strong>Keep business logic out of the orchestrator.</strong> Airflow should decide <em>when</em> things run; SQL and code should decide <em>what</em> they do. Mixing the two makes the logic untestable outside the scheduler.</li>
+</ul>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">The exercise that teaches this page</span>
+    <p>Schedule a pipeline daily. Let it run for a week. Then delete the last five days of output and backfill them.</p>
+    <p>If your output afterwards is identical to what it was before, your pipeline is idempotent and correctly parameterised. If you get duplicate rows, or five copies of today's data, you have just found the bug this entire lesson exists to prevent — and you found it on your own laptop rather than in production.</p>
+  </div>
+</div>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<ul>
+  <li>Explain what an orchestrator provides that cron does not, with a concrete failure cron allows</li>
+  <li>Look at a SQL task and say whether it is idempotent, and fix it if it is not</li>
+  <li>Explain the logical-date rule and describe exactly what goes wrong when a task calls <code>CURRENT_DATE</code></li>
+  <li>Plan a backfill of one month, naming the three things you would check before starting</li>
+  <li>Say why a fully green DAG is not evidence that the data is correct</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="processing.html"><span>Previous</span><b>Processing</b></a><a class="pn pn-next" href="reliability.html"><span>Next</span><b>Reliability</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#why-cron-is-not-enough">Why cron is not enough</a></li><li class="toc-l2"><a href="#the-dag">The DAG</a></li><li class="toc-l2"><a href="#the-two-rules-that-matter-more-than-the-tool">The two rules that matter more than the tool</a></li><li class="toc-l3"><a href="#rule-1-every-task-must-be-idempotent">Rule 1 — Every task must be idempotent</a></li><li class="toc-l3"><a href="#rule-2-parameterise-by-logical-date-never-by-now">Rule 2 — Parameterise by logical date, never by &quot;now&quot;</a></li><li class="toc-l2"><a href="#backfills">Backfills</a></li><li class="toc-l2"><a href="#failures-retries-and-alerts">Failures, retries and alerts</a></li><li class="toc-l2"><a href="#how-to-structure-a-dag">How to structure a DAG</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

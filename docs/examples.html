@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en" data-page="examples">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worked examples · System Design for Data Engineering</title>
+<meta name="description" content="Two complete designs with the reasoning spelled out — a batch e-commerce warehouse and a near-real-time event pipeline.">
+<meta name="theme-color" content="#1a73e8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231a73e8'/><path d='M16 7v18M8 11.5l16 9M8 20.5l16-9' stroke='white' stroke-width='2.4' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Applied before paint so the page never flashes the wrong theme.
+  (function () {
+    // Namespace by path so two courses on one GitHub Pages domain keep separate state.
+    var NS = 'ls:' + location.pathname.split('/').filter(Boolean).slice(0, 1).join('/') + ':';
+    try {
+      var t = localStorage.getItem(NS + 'theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="appbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Open navigation" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+  </button>
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></svg></span>
+    <span class="brand-text">System Design for Data Engineering</span>
+  </a>
+  <div class="search" role="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"/></svg>
+    <input id="searchInput" type="search" placeholder="Search the course" autocomplete="off" aria-label="Search the course">
+    <div class="search-results" id="searchResults" hidden></div>
+  </div>
+  <button class="icon-btn" id="themeToggle" aria-label="Toggle dark mode">
+    <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5 2 3h-4l2-3zm0 20-2-3h4l-2 3zM2 12l3-2v4l-3-2zm20 0-3 2v-4l3 2zM4.9 4.9l3.5 1-2.5 2.5-1-3.5zm14.2 14.2-3.5-1 2.5-2.5 1 3.5zM4.9 19.1l1-3.5 2.5 2.5-3.5 1zM19.1 4.9l-1 3.5-2.5-2.5 3.5-1z"/></svg>
+    <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.3 4.9c.4-.4.2-1.1-.4-1.1a8.5 8.5 0 1 0 8.3 10.4c.1-.6-.6-.9-1.1-.6a6.5 6.5 0 0 1-9.1-8 6.6 6.6 0 0 1 2.3-.7z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="sidenav" id="sidenav" aria-label="Course navigation">
+    <div class="progress-card">
+      <div class="progress-head">
+        <span>Your progress</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-sub" id="progressSub">0 of 0 topics marked done</p>
+      <button class="text-btn" id="resetProgress" type="button">Reset progress</button>
+    </div>
+    <p class="nav-label">Start here</p><ul class="nav-list"><li><a href="index.html">Home</a></li><li><a href="foundations.html">Foundations</a></li></ul><p class="nav-label">The building blocks</p><ul class="nav-list"><li><a href="storage.html">Storage</a></li><li><a href="ingestion.html">Ingestion</a></li><li><a href="processing.html">Processing</a></li><li><a href="orchestration.html">Orchestration</a></li></ul><p class="nav-label">The hard parts</p><ul class="nav-list"><li><a href="reliability.html">Reliability</a></li><li><a href="quality.html">Quality</a></li><li><a href="modeling.html">Modelling</a></li><li><a href="cost.html">Cost &amp; governance</a></li></ul><p class="nav-label">Designing a system</p><ul class="nav-list"><li><a href="framework.html">The framework</a></li><li><a href="examples.html" class="active" aria-current="page">Worked examples</a></li></ul><p class="nav-label">Keep going</p><ul class="nav-list"><li><a href="path.html">Practice path</a></li><li><a href="reference.html">Glossary &amp; numbers</a></li></ul><p class="nav-label">Practice</p><ul class="nav-list"><li><a href="quiz.html">Practice quiz</a></li></ul>
+  </nav>
+
+  <main id="main">
+    <article class="content">
+      <p class="eyebrow">Designing a system</p>
+      <h1>Worked examples</h1>
+      <p class="lede">Two designs carried through the framework end to end, including the trade-offs that were accepted rather than solved. The reasoning is the point, not the architecture.</p>
+      <h2 id="example-1-an-analytics-warehouse-for-an-e-commerce-company" class="anchored"><a class="anchor" href="#example-1-an-analytics-warehouse-for-an-e-commerce-company" aria-label="Link to this section">#</a>Example 1 — An analytics warehouse for an e-commerce company<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="example-1-an-analytics-warehouse-for-an-e-commerce-company"><span>Done</span></label></h2>
+
+<h3 id="step-2-the-numbers" class="anchored"><a class="anchor" href="#step-2-the-numbers" aria-label="Link to this section">#</a>Step 2: the numbers</h3>
+
+<div class="table-wrap">
+<table>
+  <tbody>
+    <tr><td><strong>Sources</strong></td><td>Postgres app database (50 M orders, ~2 M rows updated daily), Stripe API, Google Ads API</td></tr>
+    <tr><td><strong>Consumers</strong></td><td>12 analysts writing SQL; about 30 dashboards</td></tr>
+    <tr><td><strong>Freshness</strong></td><td>Hourly is plenty. Daily acceptable for ad spend</td></tr>
+    <tr><td><strong>History</strong></td><td>5 years</td></tr>
+    <tr><td><strong>Correctness</strong></td><td>Revenue must reconcile with Stripe to the cent</td></tr>
+    <tr><td><strong>Mutability</strong></td><td>Orders are updated (status changes) and cancelled orders are hard-deleted</td></tr>
+    <tr><td><strong>Access</strong></td><td>Emails and addresses restricted to two people</td></tr>
+    <tr><td><strong>Budget</strong></td><td>Modest. Team of two data engineers</td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 615" role="img" class="dg">
+  <title>Example 1 - the e-commerce warehouse</title><desc>Three sources with three different ingestion patterns land in raw, then flow through staging to marts and BI</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Example 1 - the e-commerce warehouse</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box" x="16" y="16" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="40.3" font-size="15" text-anchor="start" font-weight="500">Three sources</text>
+  <text class="dg-sub" x="34" y="62.0" font-size="12.5" text-anchor="start">Postgres via CDC · Stripe hourly · Ads daily snapshot</text>
+  <line class="dg-arrow" x1="380" y1="87.875" x2="380" y2="104.875" marker-end="url(#dg-a)"/>
+  <rect class="dg-box dg-box-accent" x="16" y="111.875" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="136.2" font-size="15" text-anchor="start" font-weight="500">Raw schema</text>
+  <text class="dg-sub" x="34" y="157.9" font-size="12.5" text-anchor="start">Untouched, never edited, five years kept</text>
+  <line class="dg-arrow" x1="380" y1="183.75" x2="380" y2="200.75" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="207.75" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="232.1" font-size="15" text-anchor="start" font-weight="500">Staging</text>
+  <text class="dg-sub" x="34" y="253.8" font-size="12.5" text-anchor="start">Typed, deduplicated, one row per order line</text>
+  <line class="dg-arrow" x1="380" y1="279.625" x2="380" y2="296.625" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="303.625" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="327.9" font-size="15" text-anchor="start" font-weight="500">Marts</text>
+  <text class="dg-sub" x="34" y="349.6" font-size="12.5" text-anchor="start">fct_orders, dim_customer, dim_product, dim_date</text>
+  <line class="dg-arrow" x1="380" y1="375.5" x2="380" y2="392.5" marker-end="url(#dg-a)"/>
+  <rect class="dg-box dg-box-accent" x="16" y="399.5" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="423.8" font-size="15" text-anchor="start" font-weight="500">Reconciliation test</text>
+  <text class="dg-sub" x="34" y="445.5" font-size="12.5" text-anchor="start">Warehouse revenue must equal Stripe's own total</text>
+  <line class="dg-arrow" x1="380" y1="471.375" x2="380" y2="488.375" marker-end="url(#dg-a)"/>
+  <rect class="dg-box" x="16" y="495.375" width="728" height="65.875" rx="10" ry="10"/>
+  <text class="dg-label" x="34" y="519.7" font-size="15" text-anchor="start" font-weight="500">BI</text>
+  <text class="dg-sub" x="34" y="541.4" font-size="12.5" text-anchor="start">12 analysts, 30 dashboards, hourly freshness</text>
+  </g>
+</svg>
+  <figcaption>Three sources, three different ingestion patterns — because the right pattern is a property of the source, not of the platform.</figcaption>
+</figure>
+
+<h3 id="the-decisions-and-why" class="anchored"><a class="anchor" href="#the-decisions-and-why" aria-label="Link to this section">#</a>The decisions, and why</h3>
+
+<p><strong>A cloud warehouse, not a lakehouse.</strong> The data is in the low terabytes, the team is two SQL-fluent people, and there is no requirement for multiple query engines or open formats. A lakehouse would add compaction, table maintenance and tuning work to a team that has no spare capacity for it. Complexity would buy nothing here.</p>
+
+<p><strong>CDC for Postgres.</strong> This is forced by the requirements, not chosen by preference. Orders get updated as their status changes, and cancelled orders are hard-deleted. A high-water-mark on <code>updated_at</code> would keep deleted orders forever — silently inflating order counts with no error anywhere — and would also miss the bulk migration that touched 400,000 rows without updating timestamps. CDC sees both.</p>
+
+<p><strong>Full snapshot for Google Ads.</strong> The table is small, and the vendor restates the last three days of attribution data anyway. A snapshot self-corrects for free; incremental logic here would be more code doing a worse job.</p>
+
+<p><strong>Incremental with a three-day lookback for Stripe.</strong> Refunds and disputes attach to charges from weeks ago, so a strict watermark would miss them. Reprocessing three days each run and upserting on <code>charge_id</code> is cheap insurance — a few minutes of compute against a class of silent revenue errors.</p>
+
+<p><strong>Layers.</strong> <code>raw</code> (untouched, never edited, five years kept) → <code>staging</code> (typed, deduplicated, one row per entity) → <code>marts</code> (a star schema: <code>fct_order_items</code>, <code>dim_customer</code>, <code>dim_product</code>, <code>dim_date</code>).</p>
+
+<p><strong>Grain, declared before any SQL:</strong> one row per <em>order line item</em>. Analysts need revenue per product, so the order-level grain would not support the questions being asked. Writing this down first prevents the mixed-grain disaster described in <a href="modeling.html">Modelling</a>.</p>
+
+<p><strong>SCD Type 2 on <code>dim_customer</code>, for two fields only</strong> — <code>country</code> and <code>segment</code>. Historical reporting must attribute an old order to the segment the customer was in at the time. Everything else on that dimension is Type 1, because versioning fields nobody asks historical questions about is pure cost.</p>
+
+<p><strong>PII.</strong> Emails and addresses stay in a restricted schema that two people can query. <code>dim_customer</code> in marts carries a hashed identifier and coarse geography — enough to group and cohort, not enough to identify.</p>
+
+<p><strong>Idempotency.</strong> Marts are insert-overwrite by <code>order_date</code> partition. The Stripe load merges on <code>charge_id</code>. Both are safe to rerun, which makes the three-day lookback and any future backfill safe by construction.</p>
+
+<p><strong>Tests.</strong> Uniqueness on every mart primary key, not-null on foreign keys, freshness on <code>fct_order_items</code> — and a <strong>daily reconciliation</strong> comparing warehouse revenue against Stripe's own reported total. That last one is the test that catches errors nothing else would.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">The trade-offs accepted, not solved</span>
+    <p>CDC adds a moving part and requires replication access plus cooperation from whoever owns the database. Accepted, because the alternative silently loses deleted orders.</p>
+    <p>Hourly refresh means dashboards can be up to sixty minutes stale. Accepted explicitly by the consumers, in writing, rather than assumed.</p>
+    <p>The three-day Stripe lookback costs a little compute every day to prevent an error class that might occur monthly. Accepted, because a silent revenue error is far more expensive than the compute.</p>
+    <p>Naming what you accepted is as important as naming what you chose. A design with no acknowledged trade-offs has not been examined.</p>
+  </div>
+</div>
+
+<h2 id="example-2-clickstream-events-with-near-real-time-product-ana" class="anchored"><a class="anchor" href="#example-2-clickstream-events-with-near-real-time-product-ana" aria-label="Link to this section">#</a>Example 2 — Clickstream events with near-real-time product analytics<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="example-2-clickstream-events-with-near-real-time-product-ana"><span>Done</span></label></h2>
+
+<h3 id="step-2-the-numbers" class="anchored"><a class="anchor" href="#step-2-the-numbers" aria-label="Link to this section">#</a>Step 2: the numbers</h3>
+
+<div class="table-wrap">
+<table>
+  <tbody>
+    <tr><td><strong>Volume</strong></td><td>50 M events/day — about 600/sec average, 4,000/sec peak. ~1.5 KB each</td></tr>
+    <tr><td><strong>Consumers</strong></td><td>Product analytics team, plus a live dashboard for a launch</td></tr>
+    <tr><td><strong>Freshness</strong></td><td>5 minutes for the live dashboard; daily for behavioural aggregates</td></tr>
+    <tr><td><strong>Lateness</strong></td><td>Mobile clients go offline. Measured p99.9 arrival delay: about 4 days</td></tr>
+    <tr><td><strong>Correctness</strong></td><td>Approximate is fine for the live view. The daily aggregate must be right</td></tr>
+  </tbody>
+</table>
+</div>
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 291" role="img" class="dg">
+  <title>Example 2 - two paths from one stream</title><desc>A speed path serves approximate live counters while a batch path produces the correct daily numbers</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Example 2 - two paths from one stream</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-accent" x="16" y="16" width="354" height="220.95" rx="10" ry="10"/>
+  <text class="dg-label" x="193" y="49.1" font-size="16" text-anchor="middle" font-weight="500">Speed path</text>
+  <circle class="dg-dot" cx="36" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="48" y="81.5" font-size="12.5" text-anchor="start">Reads: Kafka, 5-minute windows</text>
+  <circle class="dg-dot" cx="36" cy="105.8" r="2.5"/>
+  <text class="dg-sub" x="48" y="108.6" font-size="12.5" text-anchor="start">Writes: counters into Redis</text>
+  <circle class="dg-dot" cx="36" cy="132.9" r="2.5"/>
+  <text class="dg-sub" x="48" y="135.7" font-size="12.5" text-anchor="start">Serves: the live launch dashboard</text>
+  <circle class="dg-dot" cx="36" cy="160.1" r="2.5"/>
+  <text class="dg-sub" x="48" y="162.8" font-size="12.5" text-anchor="start">Late data: dropped past the watermark</text>
+  <circle class="dg-dot" cx="36" cy="187.2" r="2.5"/>
+  <text class="dg-sub" x="48" y="189.9" font-size="12.5" text-anchor="start">Promise: approximate, and labelled as such</text>
+  <rect class="dg-box dg-box-muted" x="390" y="16" width="354" height="220.95" rx="10" ry="10"/>
+  <text class="dg-label" x="567" y="49.1" font-size="16" text-anchor="middle" font-weight="500">Truth path</text>
+  <circle class="dg-dot" cx="410" cy="78.7" r="2.5"/>
+  <text class="dg-sub" x="422" y="81.5" font-size="12.5" text-anchor="start">Reads: Parquet landed from the same Kafka</text>
+  <text class="dg-sub" x="422" y="99.6" font-size="12.5" text-anchor="start">topic</text>
+  <circle class="dg-dot" cx="410" cy="124.0" r="2.5"/>
+  <text class="dg-sub" x="422" y="126.7" font-size="12.5" text-anchor="start">Writes: fct_events, sessions, funnels</text>
+  <circle class="dg-dot" cx="410" cy="151.1" r="2.5"/>
+  <text class="dg-sub" x="422" y="153.8" font-size="12.5" text-anchor="start">Serves: product analytics and reporting</text>
+  <circle class="dg-dot" cx="410" cy="178.2" r="2.5"/>
+  <text class="dg-sub" x="422" y="180.9" font-size="12.5" text-anchor="start">Late data: 7-day lookback re-run every night</text>
+  <circle class="dg-dot" cx="410" cy="205.3" r="2.5"/>
+  <text class="dg-sub" x="422" y="208.1" font-size="12.5" text-anchor="start">Promise: correct, and up to a day old</text>
+  </g>
+</svg>
+  <figcaption>Two paths from one stream, serving two different promises. The split is deliberate, because one pipeline cannot be both fast and complete.</figcaption>
+</figure>
+
+<h3 id="the-decisions-and-why" class="anchored"><a class="anchor" href="#the-decisions-and-why" aria-label="Link to this section">#</a>The decisions, and why</h3>
+
+<p><strong>A dual path, deliberately.</strong> The live dashboard tolerates approximation; the daily aggregate does not. Rather than forcing one pipeline to satisfy both — which would mean either slow live numbers or wrong daily ones — the stream serves speed and the batch serves truth.</p>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">Is this not Lambda, which you said was flawed?</span>
+    <p>It is Lambda-shaped, and the flaw does not apply here. Lambda's problem is <em>two implementations of the same business logic</em>, which drift apart until the two answers disagree and nobody can say which is right.</p>
+    <p>These two paths compute genuinely <em>different</em> things: the stream produces live counters, the batch produces sessions and funnels. There is no shared logic to drift, so the criticism does not bite.</p>
+    <p>The test to apply: if both paths implement the same definition, you have Lambda's problem. If they answer different questions, you have two pipelines that happen to share a source.</p>
+  </div>
+</div>
+
+<p><strong>Kafka partitioned by <code>user_id</code></strong>, so one user's events stay in order — which sessionisation requires. Seven-day retention sets the replay budget, and therefore the deadline on noticing a bug.</p>
+
+<p><strong>Land raw to object storage first</strong>, unmodified, from the same topic. When a client-side tracking bug is found — and with mobile clients, one will be — all history can be reprocessed.</p>
+
+<p><strong>A seven-day lookback on the batch path</strong>, chosen from the measured p99.9 of four days rather than picked from the air. Numbers for the last week are therefore expected to move slightly, which is documented for consumers rather than hidden.</p>
+
+<p><strong>Both timestamps stored.</strong> <code>event_time</code> from the client — untrusted, clock-skewed, and clamped to a sane range before use — and <code>ingested_at</code> from the server, which is trusted. Aggregates use event time; operational monitoring uses ingestion time.</p>
+
+<p><strong>Idempotency.</strong> Clients generate an <code>event_id</code> UUID at the moment the event occurs, not at ingestion. The batch deduplicates on it with <code>ROW_NUMBER()</code>, because at-least-once delivery and client-side retries both produce duplicates.</p>
+
+<p><strong>Compaction.</strong> The streaming sink writes every five minutes, which would produce roughly 105,000 files a year per topic. A nightly job rewrites each day's partition into ~256 MB files. This is scheduled work, budgeted for, not something to discover later.</p>
+
+<p><strong>Serving.</strong> Live counters go to Redis, not the warehouse. A dashboard polling every ten seconds against a warehouse would be both slow and startlingly expensive — see the dashboard cost trap in <a href="cost.html">Cost and governance</a>.</p>
+
+<div class="note">
+  <div>
+    <span class="note-title">The trade-offs accepted</span>
+    <p>Two code paths mean two things to operate, and one more thing for an on-call engineer to understand. Accepted, because the alternative fails one of the two requirements.</p>
+    <p>Live and daily numbers will not match exactly. Accepted — and handled by labelling the live panel as approximate. Managing that expectation is part of the design, not an afterthought.</p>
+  </div>
+</div>
+
+<h2 id="what-both-examples-have-in-common" class="anchored"><a class="anchor" href="#what-both-examples-have-in-common" aria-label="Link to this section">#</a>What both examples have in common<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="what-both-examples-have-in-common"><span>Done</span></label></h2>
+
+<ul>
+  <li>The ingestion pattern was <strong>derived from the source's mutability</strong>, not chosen by preference.</li>
+  <li>Idempotency was stated explicitly for every write, rather than assumed.</li>
+  <li>The lateness policy came from a <strong>measured</strong> distribution, not an intuition.</li>
+  <li>Raw data is landed unmodified in both, for the same reason: future bugs.</li>
+  <li>The trade-offs are named and accepted, not hidden.</li>
+</ul>
+
+<p>That list is roughly what an interviewer is listening for, and roughly what a colleague reviewing your design will check.</p>
+
+<h2 id="checklist" class="anchored"><a class="anchor" href="#checklist" aria-label="Link to this section">#</a>Checklist<label class="topic-check" title="Mark this topic as done"><input type="checkbox" data-topic="checklist"><span>Done</span></label></h2>
+
+<ul>
+  <li>Explain why example 1 uses three different ingestion patterns for three sources</li>
+  <li>Say why CDC is forced rather than preferred in example 1, referring to a specific requirement</li>
+  <li>Explain when a Lambda-shaped architecture is acceptable and when it is not</li>
+  <li>Justify a lookback window using a lateness distribution</li>
+  <li>Name three trade-offs each design accepted rather than solved</li>
+</ul>
+      <nav class="prevnext" aria-label="Course navigation"><a class="pn pn-prev" href="framework.html"><span>Previous</span><b>The framework</b></a><a class="pn pn-next" href="path.html"><span>Next</span><b>Practice path</b></a></nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul class="toc-list"><li class="toc-l2"><a href="#example-1-an-analytics-warehouse-for-an-e-commerce-company">Example 1 — An analytics warehouse for an e-commerce company</a></li><li class="toc-l3"><a href="#step-2-the-numbers">Step 2: the numbers</a></li><li class="toc-l3"><a href="#the-decisions-and-why">The decisions, and why</a></li><li class="toc-l2"><a href="#example-2-clickstream-events-with-near-real-time-product-ana">Example 2 — Clickstream events with near-real-time product analytics</a></li><li class="toc-l3"><a href="#step-2-the-numbers">Step 2: the numbers</a></li><li class="toc-l3"><a href="#the-decisions-and-why">The decisions, and why</a></li><li class="toc-l2"><a href="#what-both-examples-have-in-common">What both examples have in common</a></li><li class="toc-l2"><a href="#checklist">Checklist</a></li></ul>
+    </aside>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><b>System Design for Data Engineering</b> — An independent learning resource. Tool names are used to illustrate ideas, not to endorse products.</p>
+    <p class="muted">Content last reviewed 2026-08-15.</p>
+  </div>
+</footer>
+
+<script src="assets/search-index.js"></script>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

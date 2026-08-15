@@ -1,0 +1,84 @@
+<!--meta
+{
+  "title": "System Design for Data Engineering",
+  "navTitle": "Home",
+  "description": "A beginner's course in data system design: pipelines, storage, ingestion, reliability, modelling and cost, with worked examples and practice questions.",
+  "lede": "A twelve-lesson course for someone starting from zero. By the end you will be able to design a data pipeline, defend the choices you made, and name what you traded away to make them."
+}
+-->
+
+<div class="hero">
+  <span class="chip">Twelve lessons · start from zero</span>
+  <h2 data-no-progress data-no-toc style="margin:16px 0 8px;font-size:32px">How data gets from where it is made to where it is useful</h2>
+  <p style="max-width:60ch;margin-bottom:0">Twelve lessons, eighteen diagrams and a practice quiz, taking you from "what is a data warehouse" to designing a pipeline and walking someone through its failure modes.</p>
+  <div class="btn-row">
+    <a class="btn" href="foundations.html">Start the course</a>
+    <a class="btn secondary" href="quiz.html">Jump to practice</a>
+  </div>
+</div>
+
+<h2 data-no-progress>Who this is for</h2>
+
+<p>Someone who has heard the words — pipeline, warehouse, Kafka, dbt, idempotent — and does not yet have a structure to hang them on. No prior data engineering experience is assumed. Basic SQL helps but is not required for the reading; it becomes necessary at the practice stage.</p>
+
+<p>The course teaches ideas rather than products. Tools are named so you recognise them in job descriptions and conversations, but the tools turn over every few years and the ideas do not.</p>
+
+<h2 data-no-progress>What you will be able to do</h2>
+
+<ul>
+  <li>Explain why analytics does not run on the application's database, in terms of how bytes sit on disk</li>
+  <li>Choose an ingestion pattern for a source and defend it against the alternatives</li>
+  <li>Recognise a pipeline that will silently produce wrong data, and say which specific failure will cause it</li>
+  <li>Model a dataset into facts and dimensions with a clearly stated grain</li>
+  <li>Take a vague request and turn it into a design with numbers, trade-offs and failure modes attached</li>
+</ul>
+
+<h2 data-no-progress>The path through</h2>
+
+<div class="cards">
+  <a class="card" href="foundations.html">
+    <span class="chip green">Start here</span>
+    <h3 data-no-toc>Foundations</h3>
+    <p>The reference pipeline, the OLTP/OLAP split, and the four constraints every design trades between. Everything later leans on this page.</p>
+  </a>
+  <a class="card" href="storage.html">
+    <span class="chip">Building blocks</span>
+    <h3 data-no-toc>Storage, ingestion, processing, orchestration</h3>
+    <p>Where data sits, how it gets there, how it is transformed, and what makes it all run on a schedule.</p>
+  </a>
+  <a class="card" href="reliability.html">
+    <span class="chip">The hard parts</span>
+    <h3 data-no-toc>Reliability, quality, modelling, cost</h3>
+    <p>Idempotency, late data, schema changes, tests, star schemas and the bill. This is where junior and senior designs diverge.</p>
+  </a>
+  <a class="card" href="framework.html">
+    <span class="chip">Designing</span>
+    <h3 data-no-toc>The framework and worked examples</h3>
+    <p>An eight-step method for approaching any design, then two complete systems with the reasoning spelled out.</p>
+  </a>
+  <a class="card" href="path.html">
+    <span class="chip">Practice</span>
+    <h3 data-no-toc>Twelve-week build path</h3>
+    <p>Projects that each end in something running on your own machine, from SQL to a streaming consumer you deliberately break.</p>
+  </a>
+  <a class="card" href="quiz.html">
+    <span class="chip amber">Test yourself</span>
+    <h3 data-no-toc>Practice questions</h3>
+    <p>Scenario questions filterable by topic, with an explanation on every answer covering the tempting wrong one too.</p>
+  </a>
+</div>
+
+<h2 data-no-progress>The one idea to leave with</h2>
+
+<p>In backend engineering, the failure you fear is the system being <strong>down</strong> — loud, obvious, everyone knows within a minute.</p>
+
+<p>In data engineering, the failure you fear is the system being <strong>wrong</strong> — silent, still reporting success every morning, and capable of running for weeks while people make decisions on the output. Almost every practice in this course exists because of that difference.</p>
+
+<h2 data-no-progress>How to use this site</h2>
+
+<ul>
+  <li><strong>Read in order the first time.</strong> Pages are sequenced by dependency, not importance, so later lessons assume earlier ones.</li>
+  <li><strong>Tick topics off as you go.</strong> Every section has a <em>Done</em> checkbox and the sidebar tracks the whole course.</li>
+  <li><strong>Search is fast.</strong> Press <code>/</code> anywhere to jump into the search box.</li>
+  <li><strong>Do the exercises.</strong> Several lessons end with something to try on your own machine. Those are where the learning actually happens — reading about idempotency is not the same as breaking a pipeline and watching the row count double.</li>
+</ul>

@@ -1,0 +1,149 @@
+<!--meta
+{
+  "title": "Getting data in",
+  "navTitle": "Ingestion",
+  "description": "The five ingestion patterns — snapshots, high-water-marks, CDC, event streams and file drops — and the traps in each.",
+  "eyebrow": "The building blocks",
+  "lede": "Five patterns cover about 95% of real systems. Choosing the wrong one is recoverable; not knowing which traps come with the one you chose is not."
+}
+-->
+
+<h2>The awkward truth about sources</h2>
+
+<p>Every source belongs to someone else. Their schema is theirs, their uptime is theirs, and their decision to rename a column on a Tuesday afternoon is theirs. You are a guest in their system, and they very often do not know you exist.</p>
+
+<p>This is the root of most ingestion difficulty. The mechanics of copying data are easy. The hard part is copying it in a way that survives someone else changing their mind.</p>
+
+<div class="analogy">
+  <span class="analogy-label">Analogy</span>
+  <p>Two ways to know what a neighbour is doing. You can look through their window every hour and note what changed — cheap to set up, but you miss anything that happens between looks, and you have no idea when they redecorate. Or they can agree to tell you whenever something changes — more to arrange, and far more reliable.</p>
+  <p>The first is <strong>pull</strong>. The second is <strong>push</strong>. Every pattern below is one or the other.</p>
+  <p><strong>Where it breaks:</strong> a neighbour who tells you things is being polite; a source system that pushes events is making a commitment it can break silently. Push is more reliable, not automatically reliable.</p>
+</div>
+
+<h2>Pattern 1 — Full snapshot</h2>
+
+<p>Copy the whole table, every run.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Good</th><th>Bad</th></tr></thead>
+  <tbody>
+    <tr><td>Trivial to build and reason about</td><td>Does not scale — fine at 10 million rows, ruinous at 10 billion</td></tr>
+    <tr><td>Self-correcting: yesterday's mistakes vanish today</td><td>Heavy load on the source each run</td></tr>
+    <tr><td>Handles deletes for free</td><td>Loses history unless you snapshot to dated partitions</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><strong>Use it for</strong> small dimension tables, reference data, and any early-stage pipeline where simplicity is worth more than efficiency. Beginners often skip past this pattern as too naive. It is frequently the right answer, and it is always the right place to start.</p>
+
+<h2>Pattern 2 — Incremental with a high-water mark</h2>
+
+<p>Remember the largest <code>updated_at</code> you have seen, and next time ask only for rows above it.</p>
+
+<pre><code>-- Cheap, common, and full of sharp edges
+SELECT * FROM orders WHERE updated_at &gt; :last_watermark</code></pre>
+
+<p>This is the most widely used pattern in the world and the one that quietly produces the most wrong data. Four failure modes, all of which you should know before writing one:</p>
+
+<div class="note warn">
+  <div>
+    <span class="note-title">The four ways a high-water mark lies to you</span>
+    <p><strong>Hard deletes are invisible.</strong> A deleted row is never "greater than the watermark", so your copy keeps a row that no longer exists in the source. Nothing errors. Your order count is simply too high, forever.</p>
+    <p><strong><code>updated_at</code> does not always update.</strong> Bulk migrations and admin scripts routinely bypass it. If the column is set in application code rather than by the database, some code path is missing it right now.</p>
+    <p><strong>Open transactions skip rows.</strong> A transaction that began before your watermark but committed after it is silently missed — its rows have older timestamps than the mark you have already advanced past.</p>
+    <p><strong>Timezones.</strong> Mixing UTC and local time in a watermark is a classic silent-data-loss bug, and it goes unnoticed until a daylight-saving change makes it an hour worse.</p>
+  </div>
+</div>
+
+<p>The standard mitigation for the third and fourth problems is an <strong>overlap window</strong>: re-pull the last few hours or days every run and deduplicate. That only works if your writes are idempotent — which is the subject of the <a href="reliability.html">Reliability</a> lesson, and the reason it comes soon after this one.</p>
+
+<h2>Pattern 3 — Change Data Capture</h2>
+
+<p>Instead of querying the table, read the database's own replication log — the Postgres WAL, the MySQL binlog — and turn every insert, update and delete into an event. Tools: Debezium, Fivetran, AWS DMS.</p>
+
+<figure class="diagram" data-diagram="watermark-cdc">
+  <figcaption>CDC solves exactly the failure modes a high-water-mark has, because it reads the record of what happened rather than inferring it from the current state.</figcaption>
+</figure>
+
+<p>The catch is that CDC gives you a stream of <em>changes</em>, and you still have to apply them correctly. That normally means a <code>MERGE</code> keyed on the primary key and ordered by log position — get the ordering wrong and you will apply an old update after a newer one.</p>
+
+<p><strong>Use it when</strong> the source table is large, deletes matter, or you need freshness under an hour. <strong>Do not reach for it</strong> on a 50,000-row settings table that changes twice a week; a snapshot is better.</p>
+
+<h2>Pattern 4 — Event streams</h2>
+
+<p>The application publishes events — <code>order_placed</code>, <code>page_viewed</code> — to a log such as Kafka, Kinesis or Pub/Sub. Consumers read from the log independently, each at its own pace.</p>
+
+<p>Four terms carry most of the meaning:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Term</th><th>What it means</th><th>Why you care</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Topic</strong></td><td>A named stream of events</td><td>The unit you subscribe to</td></tr>
+    <tr><td><strong>Partition</strong></td><td>A shard of a topic</td><td>Ordering is guaranteed <em>within</em> a partition only — so key by <code>user_id</code> if one user's events must stay in order</td></tr>
+    <tr><td><strong>Offset</strong></td><td>A consumer's position in the log</td><td>Replaying after a bug means resetting it</td></tr>
+    <tr><td><strong>Retention</strong></td><td>How long the log keeps data, often 7 days</td><td>This is your replay budget when something breaks. It is a hard deadline on noticing</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note trap">
+  <div>
+    <span class="note-title">Events and CDC look similar and are not</span>
+    <p>Both produce a stream of records about changes, so they get lumped together. The difference is who decides what the record means.</p>
+    <p><strong>CDC</strong> describes <em>rows changing</em>: "the <code>status</code> column of order 4521 went from <code>pending</code> to <code>shipped</code>". You are reading someone's internal database structure, and you are coupled to it.</p>
+    <p><strong>Events</strong> describe <em>things happening</em>: "order 4521 shipped, at this time, with this carrier". The producer chose to publish that, and owns its meaning.</p>
+    <p>CDC is easier to switch on without anyone's cooperation. Events are better data, because they survive the source team refactoring their schema.</p>
+  </div>
+</div>
+
+<h2>Pattern 5 — Files and third-party APIs</h2>
+
+<p>A vendor drops CSVs on an SFTP server. A SaaS tool exposes a REST API. Unglamorous, ubiquitous, and where a surprising share of real data engineering time goes.</p>
+
+<p>Four things to get right:</p>
+
+<ul>
+  <li><strong>Pagination and rate limits</strong> — handle cursors properly, and respond to a <code>429</code> with exponential backoff plus jitter rather than an immediate retry.</li>
+  <li><strong>Retries</strong> — network calls fail. Assume it, and make retrying safe rather than merely possible.</li>
+  <li><strong>Deterministic landing paths</strong> — write to <code>raw/stripe/charges/dt=2026-03-01/</code> so a rerun overwrites the same place instead of adding a second copy alongside the first.</li>
+  <li><strong>Keep the untouched response.</strong> Land the raw payload before you parse it.</li>
+</ul>
+
+<div class="note tip">
+  <div>
+    <span class="note-title">The single most valuable habit in ingestion</span>
+    <p>Land raw, unmodified, before parsing. Always.</p>
+    <p>Parsing logic has bugs. Vendors add fields. Six months from now you will discover that a field you ignored was important all along. If you kept the raw payload, that is an afternoon of reprocessing. If you did not, it is six months of missing data that no amount of engineering can recover.</p>
+  </div>
+</div>
+
+<h2>Choosing, in practice</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>If the source is…</th><th>Use</th><th>Because</th></tr></thead>
+  <tbody>
+    <tr><td>A small, slow-changing table</td><td>Full snapshot</td><td>Simplicity beats efficiency; deletes handled free</td></tr>
+    <tr><td>A large append-only table</td><td>High-water-mark</td><td>Rows never change, so the pattern's weaknesses do not apply</td></tr>
+    <tr><td>A large table with updates and deletes</td><td>CDC</td><td>Only pattern that sees deletes and missed timestamp updates</td></tr>
+    <tr><td>Genuinely event-shaped activity</td><td>Event stream</td><td>Decouples you from the producer's schema</td></tr>
+    <tr><td>A vendor you do not control</td><td>API or file drop</td><td>You take what you are given — so land it raw</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>One question decides more of this than any other: <strong>can rows change or be deleted after they are created?</strong> If no, high-water-mark is fine and cheap. If yes, you need CDC, or snapshots, or an explicit and documented acceptance that your copy will drift from the truth.</p>
+
+<h2>Checklist</h2>
+
+<ul>
+  <li>Name the five ingestion patterns and give a source that suits each</li>
+  <li>List the four ways a high-water-mark silently loses data, and say what an overlap window fixes and what it does not</li>
+  <li>Explain what CDC reads, and why that makes deletes visible when a timestamp query cannot see them</li>
+  <li>Explain the difference between a CDC record and a domain event to someone who thinks they are the same thing</li>
+  <li>Say why partition keys matter in Kafka, in terms of ordering</li>
+  <li>Justify landing raw data unmodified, using a concrete failure it prevents</li>
+</ul>

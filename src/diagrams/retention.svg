@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 188" role="img" class="dg">
+  <title>Every table needs an end of life</title><desc>Data moves from hot query storage through archive to deletion, and the deletion step is the one teams forget</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Every table needs an end of life</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-accent" x="16" y="46" width="238.66666666666666" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="135.33333333333331" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Hot</text>
+  <text class="dg-sub" x="135.33333333333331" y="110.3" font-size="12.5" text-anchor="middle">0-13 months · queried constantly</text>
+  <rect class="dg-box" x="258.66666666666663" y="46" width="178" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="347.66666666666663" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Warm</text>
+  <text class="dg-sub" x="347.66666666666663" y="110.3" font-size="12.5" text-anchor="middle">1-3 years · occasional</text>
+  <text class="dg-sub" x="347.66666666666663" y="128.4" font-size="12.5" text-anchor="middle">year-on-year queries</text>
+  <rect class="dg-box dg-box-muted" x="440.66666666666663" y="46" width="178" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="529.6666666666666" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Archive</text>
+  <text class="dg-sub" x="529.6666666666666" y="110.3" font-size="12.5" text-anchor="middle">cold storage · cents per</text>
+  <text class="dg-sub" x="529.6666666666666" y="128.4" font-size="12.5" text-anchor="middle">TB</text>
+  <rect class="dg-box dg-box-muted" x="622.6666666666666" y="46" width="121.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="681.3333333333333" y="69.8" font-size="15" text-anchor="middle" font-weight="500">Deleted</text>
+  <text class="dg-sub" x="681.3333333333333" y="110.3" font-size="12.5" text-anchor="middle">the step</text>
+  <text class="dg-sub" x="681.3333333333333" y="128.4" font-size="12.5" text-anchor="middle">everyone forgets</text>
+  <text class="dg-sub" x="16" y="30.3" font-size="12.5" text-anchor="start">Age of the data →</text>
+  </g>
+</svg>

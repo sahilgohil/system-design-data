@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 206" role="img" class="dg">
+  <title>Twelve weeks, each ending in something that runs</title><desc>SQL, then Python extraction, then storage and modelling, then dbt, then orchestration, then scale</desc>
+  <defs>
+    <marker id="dg-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="dg-arrowhead"/>
+    </marker>
+  </defs>
+  <text class="dg-label" x="16" y="29.1" font-size="16" text-anchor="start" font-weight="500">Twelve weeks, each ending in something that runs</text>
+  <g transform="translate(0 37.2)">
+  <rect class="dg-box dg-box-accent" x="16" y="46" width="117.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="74.66666666666666" y="69.8" font-size="15" text-anchor="middle" font-weight="500">1-2 SQL</text>
+  <text class="dg-sub" x="74.66666666666666" y="110.3" font-size="12.5" text-anchor="middle">window</text>
+  <text class="dg-sub" x="74.66666666666666" y="128.4" font-size="12.5" text-anchor="middle">functions,</text>
+  <text class="dg-sub" x="74.66666666666666" y="146.5" font-size="12.5" text-anchor="middle">DuckDB</text>
+  <rect class="dg-box" x="137.33333333333331" y="46" width="117.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="195.99999999999997" y="69.8" font-size="15" text-anchor="middle" font-weight="500">3-4 Python</text>
+  <text class="dg-sub" x="195.99999999999997" y="110.3" font-size="12.5" text-anchor="middle">a rerunnable</text>
+  <text class="dg-sub" x="195.99999999999997" y="128.4" font-size="12.5" text-anchor="middle">extractor</text>
+  <rect class="dg-box" x="258.66666666666663" y="46" width="117.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="317.3333333333333" y="69.8" font-size="15" text-anchor="middle" font-weight="500">5-6 Storage</text>
+  <text class="dg-sub" x="317.3333333333333" y="110.3" font-size="12.5" text-anchor="middle">Parquet,</text>
+  <text class="dg-sub" x="317.3333333333333" y="128.4" font-size="12.5" text-anchor="middle">partitions, a</text>
+  <text class="dg-sub" x="317.3333333333333" y="146.5" font-size="12.5" text-anchor="middle">star schema</text>
+  <rect class="dg-box" x="379.99999999999994" y="46" width="117.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="438.66666666666663" y="69.8" font-size="15" text-anchor="middle" font-weight="500">7-8 dbt</text>
+  <text class="dg-sub" x="438.66666666666663" y="110.3" font-size="12.5" text-anchor="middle">layers, tests,</text>
+  <text class="dg-sub" x="438.66666666666663" y="128.4" font-size="12.5" text-anchor="middle">incremental</text>
+  <rect class="dg-box" x="501.33333333333326" y="46" width="117.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="559.9999999999999" y="69.8" font-size="15" text-anchor="middle" font-weight="500">9-10 Airflow</text>
+  <text class="dg-sub" x="559.9999999999999" y="110.3" font-size="12.5" text-anchor="middle">schedule it,</text>
+  <text class="dg-sub" x="559.9999999999999" y="128.4" font-size="12.5" text-anchor="middle">then backfill it</text>
+  <rect class="dg-box" x="622.6666666666666" y="46" width="121.33333333333333" height="44" rx="10" ry="10"/>
+  <text class="dg-label" x="681.3333333333333" y="69.8" font-size="15" text-anchor="middle" font-weight="500">11-12 Scale</text>
+  <text class="dg-sub" x="681.3333333333333" y="110.3" font-size="12.5" text-anchor="middle">Spark and Kafka</text>
+  <text class="dg-sub" x="681.3333333333333" y="128.4" font-size="12.5" text-anchor="middle">basics</text>
+  <text class="dg-sub" x="16" y="30.3" font-size="12.5" text-anchor="start">Weeks →</text>
+  </g>
+</svg>

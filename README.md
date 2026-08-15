@@ -115,16 +115,20 @@ re-colour when you toggle the theme. If one stays light, it was referenced with
 
 ## Deploying
 
-**Settings → Pages → Source: Deploy from a branch → main → `/docs`.**
+Deployment is handled by GitHub Actions: `.github/workflows/deploy-pages.yml`
+runs `node build.js` on every push to `main`, then publishes the `docs/` folder
+to GitHub Pages. The `configure-pages` step uses `enablement: true`, so the
+first successful run **turns Pages on for the repository automatically** — no
+manual **Settings → Pages** step is needed.
 
-The committed `docs/` folder is served directly; no build runs on GitHub, so
-there is no CI to fail. The Actions workflow that ships with the scaffold has
-been **removed deliberately** — running it while Pages serves from a branch
-folder makes every push report a failed run.
+The workflow deliberately does **not** use Jekyll. The site is plain generated
+HTML and `build.js` writes a `docs/.nojekyll` marker; running Jekyll against the
+repo root would promote `README.md` to `index.html` and serve the wrong content.
 
-If Pages serves this README instead of the site, the folder is set to `/ (root)`
-— Jekyll promotes `README.md` when no `index.html` sits beside it. Set it to
-`/docs`.
+One-time prerequisite: under **Settings → Actions → General → Workflow
+permissions**, ensure workflows are allowed to run (default for most repos). If
+your org restricts Actions from enabling Pages, set **Settings → Pages → Source:
+GitHub Actions** once by hand; the workflow then owns every subsequent deploy.
 
 ## A note on the content
 
